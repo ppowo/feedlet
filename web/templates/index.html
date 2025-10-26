@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
     <style>
         * {
             margin: 0;
@@ -14,7 +15,7 @@
 
         body {
             font-family: monospace;
-            background: #ffffff;
+            background: #f6f8fa;
             color: #24292f;
             height: 100vh;
             overflow: hidden;
@@ -24,44 +25,155 @@
 
         /* Knowledge retention bar */
         .knowledge-bar {
-            background: #0969da;
-            color: #ffffff;
-            padding: 8px 12px;
+            display: flex;
+            gap: 1px;
             font-size: 11px;
             border-bottom: 1px solid #0550ae;
             flex-shrink: 0;
+            background: #d0d7de;
         }
 
+        .knowledge-section {
+            padding: 6px 8px;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-        .knowledge-category {
-            font-size: 9px;
+        .knowledge-section.java {
+            flex: 0 0 33.333%;
+            background: #d4a574;
+            color: #24292f;
+        }
+
+        .jquery-container {
+            flex: 0 0 66.667%;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            background: #d0d7de;
+        }
+
+        /* jQuery header section - title and description */
+        .jquery-header {
+            padding: 6px 8px;
+            background: #54aeff;
+            color: #24292f;
+            flex-shrink: 0;
+        }
+
+        /* jQuery code sections container */
+        .jquery-code-container {
+            display: flex;
+            gap: 1px;
+            flex: 1;
+            overflow: hidden;
+            background: #d0d7de;
+        }
+
+        /* jQuery code section (left side) */
+        .jquery-code-section {
+            flex: 1;
+            padding: 6px 8px;
+            background: #54aeff;
+            color: #24292f;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Modern + HTML section (right side) */
+        .modern-html-section {
+            flex: 1;
+            padding: 6px 8px;
+            background: #b392f0;
+            color: #24292f;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .modern-html-section .knowledge-code {
+            overflow-y: visible;
+            overflow-x: auto;
+            flex: 0 0 auto;
+        }
+
+        .section-label {
+            font-size: 8px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             opacity: 0.8;
             margin-bottom: 2px;
+            flex-shrink: 0;
+        }
+
+        .knowledge-category {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+            margin-bottom: 1px;
+            flex-shrink: 0;
         }
 
         .knowledge-title {
             font-weight: bold;
             margin-bottom: 2px;
-            font-size: 11px;
+            font-size: 9px;
+            flex-shrink: 0;
         }
 
         .knowledge-description {
             margin-bottom: 3px;
-            line-height: 1.3;
-            font-size: 10px;
+            line-height: 1.2;
+            font-size: 8px;
+            flex-shrink: 0;
         }
 
         .knowledge-code {
             font-family: monospace;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 4px 8px;
+            background: rgba(255, 255, 255, 0.3);
+            padding: 4px 6px;
             border-radius: 3px;
-            font-size: 10px;
-            margin-top: 3px;
+            font-size: 8px;
+            margin: 3px 0 0 0;
+            overflow-y: visible;
             overflow-x: auto;
-            white-space: pre;
+            white-space: pre-wrap;
+            word-break: break-all;
+            border-left: 2px solid rgba(0, 0, 0, 0.15);
+            flex: 1;
+            min-height: 0;
+        }
+
+        .knowledge-code code {
+            background: transparent;
+            padding: 0;
+            font-size: 8px;
+            color: inherit;
+        }
+
+        /* jQuery section's code should scroll */
+        .jquery-code-section .knowledge-code {
+            overflow-y: auto;
+        }
+
+        .knowledge-code::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .knowledge-code::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .knowledge-code::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
         }
 
         /* Tiling grid layout - optimized for readability */
@@ -241,12 +353,50 @@
 </head>
 <body>
     <div class="knowledge-bar">
-        <div class="knowledge-category">{{ .KnowledgeBit.Category }}</div>
-        <div class="knowledge-title">{{ .KnowledgeBit.Title }}</div>
-        <div class="knowledge-description">{{ .KnowledgeBit.Description }}</div>
-        {{ if .KnowledgeBit.Code }}
-        <div class="knowledge-code">{{ .KnowledgeBit.Code }}</div>
-        {{ end }}
+        <!-- Java Section: 1/3 width -->
+        <div class="knowledge-section java">
+            <div class="knowledge-category">{{ .JavaBit.Category }}</div>
+            <div class="knowledge-title">{{ .JavaBit.Title }}</div>
+            <div class="knowledge-description">{{ .JavaBit.Description }}</div>
+            {{ if .JavaBit.Code }}
+            <pre class="knowledge-code"><code class="language-java">{{ .JavaBit.Code }}</code></pre>
+            {{ end }}
+        </div>
+
+        <!-- jQuery Section: 2/3 width -->
+        <div class="jquery-container">
+            <!-- Header with title and description -->
+            <div class="jquery-header">
+                <div class="knowledge-category">{{ .JQueryBit.Category }}</div>
+                <div class="knowledge-title">{{ .JQueryBit.Title }}</div>
+                <div class="knowledge-description">{{ .JQueryBit.Description }}</div>
+            </div>
+
+            <!-- Code sections: jQuery on left, Modern+HTML on right -->
+            <div class="jquery-code-container">
+                {{ if .JQueryBit.JQueryCode }}
+                <!-- jQuery Code (left side) -->
+                <div class="jquery-code-section">
+                    <div class="section-label">jQuery</div>
+                    <pre class="knowledge-code"><code class="language-javascript">{{ .JQueryBit.JQueryCode }}</code></pre>
+                </div>
+                {{ end }}
+
+                {{ if or .JQueryBit.HTMLCode .JQueryBit.ModernCode }}
+                <!-- Modern + HTML Code (right side) -->
+                <div class="modern-html-section">
+                    {{ if .JQueryBit.HTMLCode }}
+                    <div class="section-label">HTML Example</div>
+                    <pre class="knowledge-code"><code class="language-html">{{ .JQueryBit.HTMLCode }}</code></pre>
+                    {{ end }}
+                    {{ if .JQueryBit.ModernCode }}
+                    <div class="section-label">Modern JavaScript</div>
+                    <pre class="knowledge-code"><code class="language-javascript">{{ .JQueryBit.ModernCode }}</code></pre>
+                    {{ end }}
+                </div>
+                {{ end }}
+            </div>
+        </div>
     </div>
     <div class="tiles" data-count="{{ len .Sources }}">
         {{ if .Sources }}
@@ -285,7 +435,11 @@
             </div>
         {{ end }}
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script>
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+
         // Connect to SSE endpoint
         const eventSource = new EventSource('/events');
 

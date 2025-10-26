@@ -261,20 +261,26 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return sources[i].NewestItemAge.After(sources[j].NewestItemAge)
 	})
 
-	// Select a random knowledge bit
-	knowledgeBits := knowledge.GetKnowledgeBits()
-	randomBit := knowledgeBits[rand.Intn(len(knowledgeBits))]
+	// Select random knowledge bits - one Java, one jQuery
+	javaBits := knowledge.GetKnowledgeBits()
+	jqueryBits := knowledge.GetJQueryBits()
+	randomJavaBit := javaBits[rand.Intn(len(javaBits))]
+	randomJQueryBit := jqueryBits[rand.Intn(len(jqueryBits))]
 
 	data := struct {
-		Sources      []Source
-		UpdatedAt    time.Time
-		Title        string
-		KnowledgeBit knowledge.KnowledgeBit
+		Sources       []Source
+		UpdatedAt     time.Time
+		Title         string
+		JavaBit       knowledge.KnowledgeBit
+		JQueryBit     knowledge.KnowledgeBit
+		KnowledgeBit  knowledge.KnowledgeBit // Keep for backward compatibility
 	}{
 		Sources:      sources,
 		UpdatedAt:    feed.UpdatedAt,
 		Title:        "Feedlet",
-		KnowledgeBit: randomBit,
+		JavaBit:      randomJavaBit,
+		JQueryBit:    randomJQueryBit,
+		KnowledgeBit: randomJavaBit, // Keep for backward compatibility
 	}
 
 	if err := s.tmpl.Execute(w, data); err != nil {

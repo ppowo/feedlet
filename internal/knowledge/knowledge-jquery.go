@@ -273,7 +273,7 @@ func getJQueryBits() []KnowledgeBit {
 			Description: "Add pause between chained animations. Only affects animation queue, NOT regular code.",
 			HTMLCode:    "<div id=\"notification\" style=\"display:none;\">Success! Item saved.</div>\n<div id=\"box\">Box</div>",
 			JQueryCode:  "// Show notification briefly\n$('#notification')\n    .fadeIn(300)\n    .delay(2000)      // pause 2 seconds\n    .fadeOut(300);\n\n// GOTCHA: .delay() only works with animations!\n$('#box').delay(1000).addClass('active'); // WON'T WORK!\n// addClass runs immediately, doesn't wait\n\n// For non-animations, use setTimeout\nsetTimeout(() => $('#box').addClass('active'), 1000);",
-			ModernCode:  "Use setTimeout\nsetTimeout(() => { /* animate */ }, 1000);",
+			ModernCode:  "// Use setTimeout for non-animation delays\nsetTimeout(() => {\n    element.classList.add('active');\n    // Add any other delayed code here\n}, 1000);",
 			Category:    "Effects",
 		},
 

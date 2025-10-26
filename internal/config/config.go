@@ -10,9 +10,9 @@ func GetConfig() *models.Config {
 		Port: 3737,
 		Sources: []models.SourceConfig{
 			{
-				Name:           "r/ExperiencedDevs",
+				Name:           "r/italiacareeradvice",
 				Type:           "reddit",
-				URL:            "https://old.reddit.com/r/ExperiencedDevs/top/.rss?t=month",
+				URL:            "https://old.reddit.com/r/italiacareeradvice/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
 				Days:           6,

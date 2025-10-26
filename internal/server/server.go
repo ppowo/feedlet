@@ -1,10 +1,12 @@
 package server
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"html/template"
 	"log"
-	"math/rand"
+	mrand "math/rand"
 	"net/http"
 	"sort"
 	"time"
@@ -115,6 +117,29 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleIndex serves the main page
+// secureRandomInt returns a cryptographically secure random int in [0, n)
+func secureRandomInt(n int) int {
+	if n <= 0 {
+		return 0
+	}
+
+	// Combine crypto/rand with timestamp for maximum randomness
+	var cryptoSeed int64
+	err := binary.Read(rand.Reader, binary.BigEndian, &cryptoSeed)
+
+	// Mix crypto seed with current time nanoseconds
+	seed := cryptoSeed ^ time.Now().UnixNano()
+
+	if err != nil {
+		// Fallback: just use timestamp with some mixing
+		seed = time.Now().UnixNano() ^ int64(len(fmt.Sprintf("%d", time.Now().UnixNano())))
+	}
+
+	// Create a new random generator with combined seed
+	r := mrand.New(mrand.NewSource(seed))
+	return r.Intn(n)
+}
+
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	feed := s.fetcher.GetFeed()
 	agg := aggregator.Process(feed)
@@ -264,8 +289,8 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	// Select random knowledge bits - one Java, one jQuery
 	javaBits := knowledge.GetKnowledgeBits()
 	jqueryBits := knowledge.GetJQueryBits()
-	randomJavaBit := javaBits[rand.Intn(len(javaBits))]
-	randomJQueryBit := jqueryBits[rand.Intn(len(jqueryBits))]
+	randomJavaBit := javaBits[secureRandomInt(len(javaBits))]
+	randomJQueryBit := jqueryBits[secureRandomInt(len(jqueryBits))]
 
 	data := struct {
 		Sources       []Source

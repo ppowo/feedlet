@@ -560,8 +560,8 @@ func getJQueryBits() []KnowledgeBit {
 		{
 			Title:       "$.trim() / $.isArray() / $.isFunction()",
 			Description: "Utility functions for common checks. Mostly replaced by native JS methods now.",
-			JQueryCode:  "utilities:\n$.trim('  hello  ');        // \"hello\"\n$.isArray([1, 2, 3]);       // true\n$.isFunction(alert);        // true  \n$.isNumeric('123');         // true\n$.type(null);               // \"null\" (not \"object\"!)\n\n// Use case: Form validation\nconst val = $.trim($('#username').val());\nif (val && $.isNumeric(val)) { /* valid */ }",
-			ModernCode:  "(preferred):\n'  hello  '.trim();\nArray.isArray([1, 2, 3]);\ntypeof alert === 'function';\n!isNaN(parseFloat('123')) && isFinite('123');",
+			JQueryCode:  "// utilities:\n$.trim('  hello  ');        // \"hello\"\n$.isArray([1, 2, 3]);       // true\n$.isFunction(alert);        // true  \n$.isNumeric('123');         // true\n$.type(null);               // \"null\" (not \"object\"!)\n\n// Use case: Form validation\nconst val = $.trim($('#username').val());\nif (val && $.isNumeric(val)) { /* valid */ }",
+			ModernCode:  "// preferred:\n'  hello  '.trim();\nArray.isArray([1, 2, 3]);\ntypeof alert === 'function';\n!isNaN(parseFloat('123')) && isFinite('123');",
 			Category:    "Utilities",
 		},
 		{

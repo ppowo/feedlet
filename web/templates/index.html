@@ -1,388 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-
-        :root{
-            --bg:#f6f8fa;
-            --text:#24292f;
-            --border:#d0d7de;
-            --accent:#0550ae;
-            --java:#d4a574;
-            --jquery:#54aeff;
-            --modern:#b392f0;
-            --code-bg:rgba(255,255,255,.5);
-            --scrollbar-track:rgba(0,0,0,.05);
-            --scrollbar-thumb:rgba(0,0,0,.2);
-            --scrollbar:#d0d7de;
-            --warning-bg:#fff8e6;
-            --warning-border:#e3a008;
-            --warning-text:#92400e;
-            --nsfw-bg:#fff5f5;
-            --nsfw-border:#cf222e;
-            --nsfw-text:#82071e;
-            --error-bg:#fff1f0;
-            --error-border:#ff8182;
-            --error-text:#d1242f
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            java: '#d4a574',
+            jquery: '#54aeff',
+            modern: '#b392f0'
+          }
         }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <style>
+    /* Compact code blocks */
+    .knowledge-code code {
+      line-height: 1.1 !important;
+    }
 
-        body{
-            font-family:monospace;
-            background:var(--bg);
-            color:var(--text);
-            height:100vh;
-            overflow:hidden;
-            display:flex;
-            flex-direction:column
-        }
-
-        .knowledge-bar{
-            display:flex;
-            gap:1px;
-            font-size:11px;
-            border-bottom:1px solid var(--accent);
-            flex-shrink:0;
-            background:var(--border)
-        }
-
-        .knowledge-section{
-            padding:6px 8px;
-            display:flex;
-            flex-direction:column;
-            overflow:hidden
-        }
-
-        .knowledge-section.java{
-            flex:0 0 33.333%;
-            background:var(--java);
-            color:var(--text)
-        }
-
-        .jquery-container{
-            flex:0 0 66.667%;
-            display:flex;
-            flex-direction:column;
-            gap:1px;
-            background:var(--border)
-        }
-
-        .jquery-header{
-            padding:6px 8px;
-            background:var(--jquery);
-            color:var(--text);
-            flex-shrink:0
-        }
-
-        .jquery-code-container{
-            display:flex;
-            gap:1px;
-            flex:1;
-            overflow:hidden;
-            background:var(--border)
-        }
-
-        .jquery-code-section{
-            flex:1;
-            padding:6px 8px;
-            background:var(--jquery);
-            color:var(--text);
-            display:flex;
-            flex-direction:column;
-            overflow:hidden
-        }
-
-        .modern-html-section{
-            flex:1;
-            padding:6px 8px;
-            background:var(--modern);
-            color:var(--text);
-            display:flex;
-            flex-direction:column;
-            gap:4px;
-            overflow-y:auto;
-            overflow-x:hidden
-        }
-
-        .modern-html-section .knowledge-code{
-            overflow-y:visible;
-            overflow-x:auto;
-            flex:0 0 auto
-        }
-
-        .section-label,.knowledge-category{
-            font-size:8px;
-            text-transform:uppercase;
-            letter-spacing:.5px;
-            opacity:.8;
-            margin-bottom:2px;
-            flex-shrink:0
-        }
-
-        .knowledge-category{margin-bottom:1px}
-        .knowledge-title{
-            font-weight:bold;
-            margin-bottom:2px;
-            font-size:9px;
-            flex-shrink:0
-        }
-
-        .knowledge-description{
-            margin-bottom:3px;
-            line-height:1.2;
-            font-size:8px;
-            flex-shrink:0
-        }
-
-        .knowledge-code{
-            font-family:monospace;
-            background:var(--code-bg);
-            padding:4px 6px;
-            border-radius:3px;
-            font-size:8px;
-            margin:3px 0 0;
-            overflow-y:visible;
-            overflow-x:auto;
-            white-space:pre-wrap;
-            word-break:break-all;
-            border-left:2px solid rgba(0,0,0,.15);
-            flex:1;
-            min-height:0
-        }
-
-        .knowledge-code code{
-            background:transparent;
-            padding:0;
-            font-size:8px;
-            color:inherit
-        }
-
-        .jquery-code-section .knowledge-code{overflow-y:auto}
-
-        .knowledge-code::-webkit-scrollbar{
-            width:6px;
-            height:6px;
-            background:var(--scrollbar-track)
-        }
-
-        .knowledge-code::-webkit-scrollbar-thumb{
-            background:var(--scrollbar-thumb);
-            border-radius:3px
-        }
-
-        .tiles{
-            display:grid;
-            flex:1;
-            gap:2px;
-            background:var(--border);
-            overflow:hidden;
-            grid-auto-rows:1fr
-        }
-
-        .tiles[data-count="1"]{grid-template-columns:1fr}
-        .tiles[data-count^="2"],.tiles[data-count^="3"],.tiles[data-count^="4"]{grid-template-columns:repeat(2,1fr)}
-        .tiles[data-count^="5"],.tiles[data-count^="6"],.tiles[data-count^="7"],.tiles[data-count^="8"],.tiles[data-count^="9"],.tiles[data-count^="1"]{grid-template-columns:repeat(3,1fr)}
-        .tiles[data-count^="1"]:not([data-count="1"]){grid-template-columns:repeat(4,1fr)}
-
-        .tiles[data-count="3"] .tile:last-child,
-        .tiles[data-count="5"] .tile:last-child,
-        .tiles[data-count="7"] .tile:last-child,
-        .tiles[data-count="10"] .tile:last-child,
-        .tiles[data-count="13"] .tile:last-child,
-        .tiles[data-count="17"] .tile:last-child{
-            grid-column:1/-1
-        }
-
-        .tile{
-            background:#fff;
-            border:1px solid var(--border);
-            display:flex;
-            flex-direction:column;
-            overflow:hidden
-        }
-
-        .tile.ignore-days{background:var(--warning-bg);border-color:var(--warning-border)}
-        .tile.nsfw{background:var(--nsfw-bg);border-color:var(--nsfw-border)}
-
-        .tile-header{
-            background:var(--bg);
-            padding:8px 12px;
-            border-bottom:1px solid var(--border);
-            font-size:12px;
-            font-weight:bold;
-            text-transform:uppercase;
-            letter-spacing:1px;
-            color:var(--text);
-            display:flex;
-            justify-content:space-between;
-            align-items:center
-        }
-
-        .tile.ignore-days .tile-header{background:var(--warning-bg);border-bottom-color:var(--warning-border);color:var(--warning-text)}
-        .tile.nsfw .tile-header{background:var(--nsfw-bg);border-bottom-color:var(--nsfw-border);color:var(--nsfw-text)}
-
-        .tile-header-days{
-            font-size:10px;
-            font-weight:normal;
-            opacity:.7
-        }
-
-        .tile-content{
-            flex:1;
-            overflow-y:auto;
-            padding:8px
-        }
-
-        .tile-content::-webkit-scrollbar{width:8px;background:var(--bg)}
-        .tile-content::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:4px}
-
-        .entry{
-            padding:8px;
-            margin-bottom:8px;
-            border-left:2px solid var(--border);
-            transition:border-color .2s
-        }
-
-        .entry:hover{border-left-color:var(--accent);background:var(--bg)}
-
-        .entry-title{font-size:13px;margin-bottom:4px}
-        .entry-title a{color:var(--accent);text-decoration:none}
-        .entry-title a:hover{text-decoration:underline}
-        .entry-meta{font-size:10px;color:#57606a}
-
-        .empty{text-align:center;padding:40px;color:#57606a}
-
-        .error-message{
-            background:var(--error-bg);
-            border:1px solid var(--error-border);
-            border-radius:6px;
-            padding:16px;
-            margin:16px;
-            display:flex;
-            gap:12px;
-            align-items:flex-start
-        }
-
-        .error-icon{font-size:24px;flex-shrink:0}
-        .error-text{
-            font-size:12px;
-            color:var(--error-text);
-            line-height:1.5;
-            word-wrap:break-word
-        }
-    </style>
+    .knowledge-code pre {
+      line-height: 1.1 !important;
+    }
+  </style>
 </head>
-<body>
-    <div class="knowledge-bar">
-        <!-- Java Section: 1/3 width -->
-        <div class="knowledge-section java">
-            <div class="knowledge-category">{{ .JavaBit.Category }}</div>
-            <div class="knowledge-title">{{ .JavaBit.Title }}</div>
-            <div class="knowledge-description">{{ .JavaBit.Description }}</div>
-            {{ if .JavaBit.Code }}
-            <pre class="knowledge-code"><code class="language-java">{{ .JavaBit.Code }}</code></pre>
-            {{ end }}
-        </div>
 
-        <!-- jQuery Section: 2/3 width -->
-        <div class="jquery-container">
-            <!-- Header with title and description -->
-            <div class="jquery-header">
-                <div class="knowledge-category">{{ .JQueryBit.Category }}</div>
-                <div class="knowledge-title">{{ .JQueryBit.Title }}</div>
-                <div class="knowledge-description">{{ .JQueryBit.Description }}</div>
-            </div>
-
-            <!-- Code sections: jQuery on left, Modern+HTML on right -->
-            <div class="jquery-code-container">
-                {{ if .JQueryBit.JQueryCode }}
-                <!-- jQuery Code (left side) -->
-                <div class="jquery-code-section">
-                    <div class="section-label">jQuery</div>
-                    <pre class="knowledge-code"><code class="language-javascript">{{ .JQueryBit.JQueryCode }}</code></pre>
-                </div>
-                {{ end }}
-
-                {{ if or .JQueryBit.HTMLCode .JQueryBit.ModernCode }}
-                <!-- Modern + HTML Code (right side) -->
-                <div class="modern-html-section">
-                    {{ if .JQueryBit.HTMLCode }}
-                    <div class="section-label">HTML Example</div>
-                    <pre class="knowledge-code"><code class="language-html">{{ .JQueryBit.HTMLCode }}</code></pre>
-                    {{ end }}
-                    {{ if .JQueryBit.ModernCode }}
-                    <div class="section-label">Modern JavaScript</div>
-                    <pre class="knowledge-code"><code class="language-javascript">{{ .JQueryBit.ModernCode }}</code></pre>
-                    {{ end }}
-                </div>
-                {{ end }}
-            </div>
-        </div>
+<body class="h-screen overflow-hidden grid grid-rows-[auto_1fr] font-mono bg-slate-100 text-slate-800">
+  <div class="flex gap-[1px] border-b border-blue-600 overflow-hidden">
+    <!-- Java Section: 1/3 width -->
+    <div class="w-1/3 p-0.5 flex flex-col overflow-hidden bg-java/20">
+      <div class="text-[8px] uppercase tracking-wider text-slate-600">{{ .JavaBit.Category }}</div>
+      <div class="font-bold text-[9px] leading-tight text-slate-700">{{ .JavaBit.Title }}</div>
+      <div class="text-[8px] leading-tight text-slate-600">{{ .JavaBit.Description }}</div>
+      {{ if .JavaBit.Code }}
+      <pre
+        class="knowledge-code bg-white p-0.5 rounded border-l-4 border-java text-[7px] font-mono whitespace-pre-wrap break-words shadow-inner"><code class="language-java">{{ .JavaBit.Code }}</code></pre>
+      {{ end }}
     </div>
-    <div class="tiles" data-count="{{ len .Sources }}">
-        {{ if .Sources }}
-            {{ range .Sources }}
-            <div class="tile{{ if .NSFW }} nsfw{{ else if .IgnoreDays }} ignore-days{{ end }}">
-                <div class="tile-header">
-                    <span>{{ .Name }}</span>
-                    <span class="tile-header-days">{{ if .IgnoreDays }}∞{{ else }}{{ .Days }}d{{ end }}</span>
-                </div>
-                <div class="tile-content">
-                    {{ if .Error }}
-                        <div class="error-message">
-                            <div class="error-icon">⚠️</div>
-                            <div class="error-text">{{ .Error }}</div>
-                        </div>
-                    {{ else if .Items }}
-                        {{ range .Items }}
-                        <div class="entry">
-                            <div class="entry-title">
-                                <a href="{{ .Link }}" target="_blank" rel="noopener noreferrer">{{ .Title }}</a>
-                            </div>
-                            <div class="entry-meta">{{ formatTimeAgo .Published }}</div>
-                        </div>
-                        {{ end }}
-                    {{ else }}
-                        <div class="empty">No items</div>
-                    {{ end }}
-                </div>
-            </div>
-            {{ end }}
-        {{ else }}
-            <div class="tile">
-                <div class="tile-content">
-                    <div class="empty">No sources configured</div>
-                </div>
-            </div>
+
+    <!-- jQuery Section: 2/3 width -->
+    <div class="w-2/3 flex flex-col gap-[1px] overflow-hidden">
+      <!-- Header with title and description -->
+      <div class="p-0.5 bg-jquery/20">
+        <div class="text-[8px] uppercase tracking-wider text-slate-600">{{ .JQueryBit.Category }}</div>
+        <div class="font-bold text-[9px] leading-tight text-slate-700">{{ .JQueryBit.Title }}</div>
+        <div class="text-[8px] leading-tight text-slate-600">{{ .JQueryBit.Description }}</div>
+      </div>
+
+      <!-- Code sections: jQuery on left, Modern+HTML on right -->
+      <div class="flex-1 flex gap-[1px] overflow-hidden">
+        {{ if .JQueryBit.JQueryCode }}
+        <!-- jQuery Code (left side) -->
+        <div class="flex-1 p-0.5 flex flex-col overflow-hidden bg-jquery/10">
+          <pre
+            class="knowledge-code flex-1 bg-white p-0.5 rounded border-l-4 border-jquery text-[7px] font-mono whitespace-pre-wrap break-words shadow-inner"><code class="language-javascript">{{ .JQueryBit.JQueryCode }}</code></pre>
+        </div>
         {{ end }}
+
+        {{ if or .JQueryBit.HTMLCode .JQueryBit.ModernCode }}
+        <!-- Modern + HTML Code (right side) -->
+        <div class="flex-1 p-0.5 flex flex-col bg-modern/10">
+          {{ if .JQueryBit.HTMLCode }}
+          <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-0.5">HTML</div>
+          <pre
+            class="knowledge-code bg-white p-0.5 rounded border-l-4 border-modern text-[7px] font-mono whitespace-pre-wrap break-words shadow-inner"><code class="language-html">{{ .JQueryBit.HTMLCode }}</code></pre>
+          {{ end }}
+          {{ if .JQueryBit.ModernCode }}
+          <div class="text-[8px] uppercase tracking-wider text-slate-600 mt-1 mb-0.5">Modern</div>
+          <pre
+            class="knowledge-code bg-white p-0.5 rounded border-l-4 border-modern text-[7px] font-mono whitespace-pre-wrap break-words shadow-inner"><code class="language-javascript">{{ .JQueryBit.ModernCode }}</code></pre>
+          {{ end }}
+        </div>
+        {{ end }}
+      </div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script>
-        // Initialize syntax highlighting
-        hljs.highlightAll();
+  </div>
+  <div class="flex-1 min-h-0 overflow-auto grid gap-[2px] grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+    data-count="{{ len .Sources }}">
+    {{ if .Sources }}
+    {{ range .Sources }}
+    <div class="bg-white border border-slate-300 flex flex-col overflow-hidden" {{ if .NSFW
+      }}style="background-color: #fff5f5; border-color: #cf222e;" {{ else if .IgnoreDays
+      }}style="background-color: #fff8e6; border-color: #e3a008;" {{ else }}style="background-color: #fff;" {{ end }}>
+      <div class="px-3 py-2 border-b flex justify-between items-center text-[12px] font-bold uppercase tracking-wider"
+        {{ if .NSFW }}style="background-color: #fff5f5; border-bottom-color: #cf222e; color: #82071e;" {{ else if
+        .IgnoreDays }}style="background-color: #fff8e6; border-bottom-color: #e3a008; color: #92400e;" {{ else
+        }}style="background-color: #f6f8fa; border-bottom-color: #d0d7de;" {{ end }}>
+        <span>{{ .Name }}</span>
+        <span class="text-[10px] font-normal opacity-70">{{ if .IgnoreDays }}∞{{ else }}{{ .Days }}d{{ end }}</span>
+      </div>
+      <div class="flex-1 overflow-y-auto p-2">
+        {{ if .Error }}
+        <div class="rounded p-4 m-4 flex gap-3" style="background-color: #fff1f0; border: 1px solid #ff8182;">
+          <div class="text-[24px] flex-shrink-0">⚠️</div>
+          <div class="text-[12px] leading-relaxed break-words" style="color: #d1242f;">{{ .Error }}</div>
+        </div>
+        {{ else if .Items }}
+        {{ range .Items }}
+        <div class="border-l-2 p-2 mb-2 transition-colors hover:border-blue-600 hover:bg-slate-100"
+          style="border-left-color: #d0d7de;">
+          <div class="text-[13px] mb-1">
+            <a href="{{ .Link }}" target="_blank" rel="noopener noreferrer" style="color: #0550ae;">{{ .Title }}</a>
+          </div>
+          <div class="text-[10px]" style="color: #57606a;">{{ formatTimeAgo .Published }}</div>
+        </div>
+        {{ end }}
+        {{ else }}
+        <div class="text-center py-10" style="color: #57606a;">No items</div>
+        {{ end }}
+      </div>
+    </div>
+    {{ end }}
+    {{ else }}
+    <div class="tile bg-white border border-slate-300">
+      <div class="tile-content p-2 flex-1">
+        <div class="empty text-center text-slate-500 py-10">No sources configured</div>
+      </div>
+    </div>
+    {{ end }}
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script>
+    hljs.highlightAll();
+    const eventSource = new EventSource('/events');
 
-        // Connect to SSE endpoint
-        const eventSource = new EventSource('/events');
+    eventSource.onmessage = function(event) {
+      if (event.data === 'update') {
+        window.location.reload();
+      }
+    };
 
-        eventSource.onmessage = function(event) {
-            if (event.data === 'update') {
-                // Reload the page when feed updates
-                window.location.reload();
-            }
-        };
-
-        eventSource.onerror = function(error) {
-            console.error('SSE error:', error);
-            // Reconnect after 5 seconds
-            setTimeout(() => {
-                window.location.reload();
-            }, 5000);
-        };
-    </script>
+    eventSource.onerror = function(error) {
+      console.error('SSE error:', error);
+      setTimeout(() => {
+        window.location.reload();
+      }, 5000);
+    };
+  </script>
 </body>
+
 </html>

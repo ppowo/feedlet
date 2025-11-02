@@ -60,6 +60,10 @@ func NewFromConfigs(configs []models.SourceConfig) *Fetcher {
 			src = source.NewDesuArchiveSource(cfg.Name, cfg.URL, cfg.Limit, cfg.NSFW)
 		case "wikipedia":
 			src = source.NewWikipediaSource(cfg.Name, cfg.URL, cfg.Limit)
+		case "payangel":
+			// For payangel, fetch from all sections
+			sections := []string{"SHS", "SHS-Overtime", "FleshSim"}
+			src = source.NewPayAngelSource(cfg.Name, cfg.URL, sections, cfg.Limit)
 		default:
 			log.Printf("Unknown source type: %s", cfg.Type)
 			continue

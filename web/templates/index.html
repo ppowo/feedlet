@@ -111,7 +111,9 @@
           <div class="text-[13px] mb-1">
             <a href="{{ .Link }}" target="_blank" rel="noopener noreferrer" style="color: #0550ae;">{{ .Title }}</a>
           </div>
+          {{ if not .HideDate }}
           <div class="text-[10px]" style="color: #57606a;">{{ formatTimeAgo .Published }}</div>
+          {{ end }}
         </div>
         {{ end }}
         {{ else }}

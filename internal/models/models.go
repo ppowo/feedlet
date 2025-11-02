@@ -14,6 +14,7 @@ type Item struct {
 	SourceType  string // "rss", "reddit", etc.
 	IgnoreDays  bool   // If true, don't filter by age
 	NSFW        bool   // If true, apply NSFW styling (red tint)
+	HideDate    bool   // If true, don't display the date on frontend
 }
 
 // Feed represents a collection of items from all sources

@@ -87,6 +87,15 @@ func GetConfig() *models.Config {
 				IgnoreDays:     true,
 				Limit:          6,
 			},
+			{
+				Name:           "Sam Hyde Archive",
+				Type:           "payangel",
+				URL:            "https://rentry.org/payangel",
+				Interval:       3600,
+				IntervalJitter: 300,
+				IgnoreDays:     true,
+				Limit:          6, // 2 items from each of the 3 sections
+			},
 		},
 	}
 }

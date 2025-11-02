@@ -14,21 +14,19 @@ import (
 
 // PayAngelSource implements the Source interface for the Sam Hyde archive
 type PayAngelSource struct {
-	name       string
-	url        string
-	sections   []string // List of sections to fetch: "FleshSim", "SHS", "SHS-Overtime"
-	limit      int      // Total limit across all sections
-	ignoreDays bool
+	name     string
+	url      string
+	sections []string // List of sections: "FleshSim", "SHS", "SHS-Overtime"
+	limit    int      // Total limit across all sections
 }
 
 // NewPayAngelSource creates a new PayAngel source
 func NewPayAngelSource(name, url string, sections []string, limit int) *PayAngelSource {
 	return &PayAngelSource{
-		name:       name,
-		url:        url,
-		sections:   sections,
-		limit:      limit,
-		ignoreDays: true, // Archive entries should ignore day filtering
+		name:     name,
+		url:      url,
+		sections: sections,
+		limit:    limit,
 	}
 }
 
@@ -57,126 +55,120 @@ func (p *PayAngelSource) Fetch(ctx context.Context) ([]models.Item, error) {
 		return nil, fmt.Errorf("failed to parse HTML: %w", err)
 	}
 
-	allItems := make([]models.Item, 0)
+	// Map section identifiers to their HTML IDs and display names
+	sectionMap := map[string]struct{ id, prefix string }{
+		"FleshSim":     {"#fleshsim-contact-for-information", "FleshSim"},
+		"SHS":          {"#shs-the-sam-hyde-show", "SHS"},
+		"SHS-Overtime": {"#shs-overtime", "SHS - Overtime"},
+	}
 
-	// Calculate limit per section (divide total limit by number of sections)
 	limitPerSection := p.limit / len(p.sections)
 	if limitPerSection == 0 {
-		limitPerSection = 1 // At least 1 item per section
+		limitPerSection = 1
 	}
 
-	// Fetch from each section
+	// Fetch latest N items from each section
+	sectionItems := make([][]models.Item, 0, len(p.sections))
 	for _, section := range p.sections {
-		var sectionID string
-		var sectionPrefix string
-
-		switch section {
-		case "FleshSim":
-			sectionID = "#fleshsim-contact-for-information"
-			sectionPrefix = "FleshSim"
-		case "SHS":
-			sectionID = "#shs-the-sam-hyde-show"
-			sectionPrefix = "SHS"
-		case "SHS-Overtime":
-			sectionID = "#shs-overtime"
-			sectionPrefix = "SHS - Overtime"
-		default:
-			continue // Skip unknown sections
+		info, exists := sectionMap[section]
+		if !exists {
+			continue
 		}
-
-		items := p.fetchSection(doc, sectionID, sectionPrefix, limitPerSection)
-		allItems = append(allItems, items...)
+		items := p.fetchLatestFromSection(doc, info.id, info.prefix, limitPerSection)
+		if len(items) > 0 {
+			sectionItems = append(sectionItems, items)
+		}
 	}
 
-	return allItems, nil
+	// Interleave items: latest from each section first, then second-latest, etc.
+	return p.interleaveAndTimestamp(sectionItems), nil
 }
 
-// fetchSection extracts items from a specific section of the page
-func (p *PayAngelSource) fetchSection(doc *goquery.Document, sectionID, sectionPrefix string, limit int) []models.Item {
-	items := make([]models.Item, 0)
-
-	// Find the section heading
+// fetchLatestFromSection extracts the latest N episodes from a section
+func (p *PayAngelSource) fetchLatestFromSection(doc *goquery.Document, sectionID, sectionPrefix string, limit int) []models.Item {
 	section := doc.Find(sectionID).First()
 	if section.Length() == 0 {
-		return items // Return empty if section not found
+		return nil
 	}
 
-	// Regex to extract episode information from text like "EP01" or "Episode 1"
 	epRegex := regexp.MustCompile(`(?i)(EP|Episode)\s*(\d+)`)
+	allEpisodes := make([]models.Item, 0)
 
-	// Navigate through siblings to find episode entries
-	// Episodes are in <p> tags followed by code blocks with magnet links
-	// Start from the section heading itself
-	current := section
-
-	for current.Next().Length() > 0 {
-		current = current.Next()
-
-		// Stop when we hit the next heading
-		if current.Is("h1, h2, h3, h4") {
-			break
+	// Traverse sibling elements looking for episode paragraphs
+	for el := section.Next(); el.Length() > 0; el = el.Next() {
+		if el.Is("h1, h2, h3, h4") {
+			break // Hit next section
 		}
 
-		// Look for paragraph tags that contain episode titles
-		if current.Is("p") {
-			text := strings.TrimSpace(current.Text())
+		if !el.Is("p") {
+			continue
+		}
 
-			// Skip empty paragraphs or paragraphs that don't look like episode titles
-			if text == "" || len(text) > 200 {
-				continue
-			}
+		text := strings.TrimSpace(el.Text())
+		if text == "" || len(text) > 200 {
+			continue // Skip empty or overly long paragraphs
+		}
 
-			// Extract episode number if present
-			epMatch := epRegex.FindStringSubmatch(text)
-			var episodeNum string
-			if len(epMatch) >= 3 {
-				episodeNum = epMatch[2]
-			}
+		// Extract episode number for description
+		episodeNum := ""
+		if match := epRegex.FindStringSubmatch(text); len(match) >= 3 {
+			episodeNum = match[2]
+		}
 
-			// Clean up the title (remove trailing <br>, etc.)
-			title := strings.TrimSuffix(text, "\n")
-			title = strings.TrimSpace(title)
+		description := "Sam Hyde Archive"
+		if episodeNum != "" {
+			description = fmt.Sprintf("Episode %s", episodeNum)
+		}
 
-			// Skip if this doesn't look like an episode entry
-			if title == "" {
-				continue
-			}
+		allEpisodes = append(allEpisodes, models.Item{
+			Title:       fmt.Sprintf("%s - %s", sectionPrefix, text),
+			Link:        p.url,
+			Description: description,
+			Author:      "Sam Hyde Archive",
+			SourceName:  p.name,
+			SourceType:  "payangel",
+			IgnoreDays:  true,
+			HideDate:    true,
+		})
+	}
 
-			// Format title as "SECTION - Episode Title"
-			formattedTitle := fmt.Sprintf("%s - %s", sectionPrefix, title)
+	// Return the last N episodes (latest)
+	if len(allEpisodes) <= limit {
+		return allEpisodes
+	}
+	return allEpisodes[len(allEpisodes)-limit:]
+}
 
-			// Create description with episode number if available
-			description := "Sam Hyde Archive"
-			if episodeNum != "" {
-				description = fmt.Sprintf("Episode %s", episodeNum)
-			}
+// interleaveAndTimestamp interleaves items from multiple sections and assigns timestamps
+func (p *PayAngelSource) interleaveAndTimestamp(sectionItems [][]models.Item) []models.Item {
+	if len(sectionItems) == 0 {
+		return nil
+	}
 
-			// Set a fake old date (10 years ago) to ensure this appears last on the frontend
-			oldDate := time.Now().AddDate(-10, 0, 0)
+	// Find max items per section
+	maxItems := 0
+	for _, items := range sectionItems {
+		if len(items) > maxItems {
+			maxItems = len(items)
+		}
+	}
 
-			item := models.Item{
-				Title:       formattedTitle,
-				Link:        p.url, // Link to the archive page, not the magnet link
-				Description: description,
-				Content:     fmt.Sprintf("Episode from %s\n\nView at: %s", sectionPrefix, p.url),
-				Author:      "Sam Hyde Archive",
-				Published:   oldDate, // Use old date to appear last
-				SourceName:  p.name,
-				SourceType:  "payangel",
-				IgnoreDays:  p.ignoreDays,
-				HideDate:    true, // Don't show date on frontend
-			}
+	// Interleave: iterate from last to first (latest episodes first)
+	result := make([]models.Item, 0, p.limit)
+	baseDate := time.Now().AddDate(-10, 0, 0) // 10 years ago to appear last on dashboard
 
-			items = append(items, item)
-
-			// Stop if we've reached the limit for this section
-			if limit > 0 && len(items) >= limit {
-				break
+	for i := maxItems - 1; i >= 0; i-- {
+		for _, items := range sectionItems {
+			if i < len(items) {
+				item := items[i]
+				// Assign staggered timestamps to preserve order
+				item.Published = baseDate.Add(time.Duration(-len(result)) * time.Hour)
+				result = append(result, item)
 			}
 		}
 	}
 
-	return items
+	return result
 }
 
 // Name returns the source name

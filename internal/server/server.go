@@ -291,49 +291,39 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	jqueryBits := knowledge.GetJQueryBits()
 	jspBits := knowledge.GetJSPBits()
 
-	// Check for type URL parameter (?type=java or ?type=jquery or ?type=jsp)
-	requestedType := r.URL.Query().Get("type")
-	var selectedBit knowledge.KnowledgeBit
-	var bitType string
+	// Get one random bit from each type
+	javaBit := javaBits[secureRandomInt(len(javaBits))]
+	jqueryBit := jqueryBits[secureRandomInt(len(jqueryBits))]
+	jspBit := jspBits[secureRandomInt(len(jspBits))]
 
-	switch requestedType {
-	case "java":
-		selectedBit = javaBits[secureRandomInt(len(javaBits))]
-		bitType = "Java"
-	case "jquery":
-		selectedBit = jqueryBits[secureRandomInt(len(jqueryBits))]
-		bitType = "jQuery"
-	case "jsp":
-		selectedBit = jspBits[secureRandomInt(len(jspBits))]
-		bitType = "JSP"
-	default:
-		// No type specified or invalid - choose randomly
-		typeChoice := secureRandomInt(3)
-		switch typeChoice {
-		case 0:
-			selectedBit = javaBits[secureRandomInt(len(javaBits))]
-			bitType = "Java"
-		case 1:
-			selectedBit = jqueryBits[secureRandomInt(len(jqueryBits))]
-			bitType = "jQuery"
-		case 2:
-			selectedBit = jspBits[secureRandomInt(len(jspBits))]
-			bitType = "JSP"
-		}
+	// Randomly select which tab should be active by default
+	activeTab := ""
+	typeChoice := secureRandomInt(3)
+	switch typeChoice {
+	case 0:
+		activeTab = "java"
+	case 1:
+		activeTab = "jquery"
+	case 2:
+		activeTab = "jsp"
 	}
 
 	data := struct {
-		Sources      []Source
-		UpdatedAt    time.Time
-		Title        string
-		KnowledgeBit knowledge.KnowledgeBit
-		BitType      string
+		Sources   []Source
+		UpdatedAt time.Time
+		Title     string
+		JavaBit   knowledge.KnowledgeBit
+		JQueryBit knowledge.KnowledgeBit
+		JSPBit    knowledge.KnowledgeBit
+		ActiveTab string
 	}{
-		Sources:      sources,
-		UpdatedAt:    feed.UpdatedAt,
-		Title:        "Feedlet",
-		KnowledgeBit: selectedBit,
-		BitType:      bitType,
+		Sources:   sources,
+		UpdatedAt: feed.UpdatedAt,
+		Title:     "Feedlet",
+		JavaBit:   javaBit,
+		JQueryBit: jqueryBit,
+		JSPBit:    jspBit,
+		ActiveTab: activeTab,
 	}
 
 	if err := s.tmpl.Execute(w, data); err != nil {

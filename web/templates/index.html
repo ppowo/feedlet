@@ -31,49 +31,61 @@
 <body class="h-screen overflow-hidden flex font-mono bg-slate-100 text-slate-800">
   <!-- Left Sidebar: Knowledge Section -->
   <div class="w-[600px] flex flex-col border-r border-blue-600 overflow-hidden bg-white">
-    <!-- Header -->
-    <div class="px-4 py-2 border-b
-      {{ if eq .BitType "Java" }}border-java bg-java/20
-      {{ else if eq .BitType "jQuery" }}border-jquery bg-jquery/20
-      {{ else if eq .BitType "JSP" }}border-jsp bg-jsp/20
-      {{ end }}">
-      <div class="text-[10px] font-bold uppercase tracking-wider text-slate-700">
-        {{ .BitType }}
-      </div>
+    <!-- Tab Navigation -->
+    <div class="flex border-b border-slate-300">
+      <button class="knowledge-tab flex-1 px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors {{ if eq .ActiveTab "java" }}border-b-2 border-java bg-java/20 text-slate-700{{ else }}text-slate-500 hover:bg-slate-50{{ end }}" data-tab="java">
+        Java
+      </button>
+      <button class="knowledge-tab flex-1 px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors {{ if eq .ActiveTab "jquery" }}border-b-2 border-jquery bg-jquery/20 text-slate-700{{ else }}text-slate-500 hover:bg-slate-50{{ end }}" data-tab="jquery">
+        jQuery
+      </button>
+      <button class="knowledge-tab flex-1 px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors {{ if eq .ActiveTab "jsp" }}border-b-2 border-jsp bg-jsp/20 text-slate-700{{ else }}text-slate-500 hover:bg-slate-50{{ end }}" data-tab="jsp">
+        JSP
+      </button>
     </div>
 
     <!-- Content -->
     <div class="flex-1 overflow-auto p-3 flex items-center justify-center">
-      <div class="w-full flex flex-col gap-2">
-        <div class="text-[8px] uppercase tracking-wider text-slate-600">{{ .KnowledgeBit.Category }}</div>
-        <div class="font-bold text-[10px] leading-tight text-slate-700">{{ .KnowledgeBit.Title }}</div>
-        <div class="text-[9px] leading-tight text-slate-600{{ if eq .BitType "jQuery" }} mb-2{{ end }}">{{ .KnowledgeBit.Description }}</div>
+      <!-- Java Content -->
+      <div class="knowledge-content w-full flex flex-col gap-2 {{ if ne .ActiveTab "java" }}hidden{{ end }}" data-content="java">
+        <div class="text-[8px] uppercase tracking-wider text-slate-600">{{ .JavaBit.Category }}</div>
+        <div class="font-bold text-[10px] leading-tight text-slate-700">{{ .JavaBit.Title }}</div>
+        <div class="text-[9px] leading-tight text-slate-600">{{ .JavaBit.Description }}</div>
+        {{ with .JavaBit.Code }}
+        <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-java text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-java">{{ . }}</code></pre>{{ end }}
+      </div>
 
-        {{ if eq .BitType "jQuery" }}
-          {{ with .KnowledgeBit.JQueryCode }}<div class="mb-3">
-            <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">jQuery</div>
-            <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-jquery text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-javascript">{{ . }}</code></pre>
-          </div>{{ end }}
-          {{ with .KnowledgeBit.HTMLCode }}<div class="mb-3">
-            <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">HTML</div>
-            <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-modern text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-html">{{ . }}</code></pre>
-          </div>{{ end }}
-          {{ with .KnowledgeBit.ModernCode }}<div class="mb-3">
-            <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">Modern</div>
-            <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-modern text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-javascript">{{ . }}</code></pre>
-          </div>{{ end }}
-        {{ else if eq .BitType "Java" }}
-          {{ with .KnowledgeBit.Code }}
-          <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-java text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-java">{{ . }}</code></pre>{{ end }}
-        {{ else if eq .BitType "JSP" }}
-          {{ with .KnowledgeBit.Code }}
-          <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-jsp text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-java">{{ . }}</code></pre>{{ end }}
-        {{ end }}
+      <!-- jQuery Content -->
+      <div class="knowledge-content w-full flex flex-col gap-2 {{ if ne .ActiveTab "jquery" }}hidden{{ end }}" data-content="jquery">
+        <div class="text-[8px] uppercase tracking-wider text-slate-600">{{ .JQueryBit.Category }}</div>
+        <div class="font-bold text-[10px] leading-tight text-slate-700">{{ .JQueryBit.Title }}</div>
+        <div class="text-[9px] leading-tight text-slate-600 mb-2">{{ .JQueryBit.Description }}</div>
+        {{ with .JQueryBit.JQueryCode }}<div class="mb-3">
+          <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">jQuery</div>
+          <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-jquery text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-javascript">{{ . }}</code></pre>
+        </div>{{ end }}
+        {{ with .JQueryBit.HTMLCode }}<div class="mb-3">
+          <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">HTML</div>
+          <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-modern text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-html">{{ . }}</code></pre>
+        </div>{{ end }}
+        {{ with .JQueryBit.ModernCode }}<div class="mb-3">
+          <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">Modern</div>
+          <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-modern text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-javascript">{{ . }}</code></pre>
+        </div>{{ end }}
+      </div>
+
+      <!-- JSP Content -->
+      <div class="knowledge-content w-full flex flex-col gap-2 {{ if ne .ActiveTab "jsp" }}hidden{{ end }}" data-content="jsp">
+        <div class="text-[8px] uppercase tracking-wider text-slate-600">{{ .JSPBit.Category }}</div>
+        <div class="font-bold text-[10px] leading-tight text-slate-700">{{ .JSPBit.Title }}</div>
+        <div class="text-[9px] leading-tight text-slate-600">{{ .JSPBit.Description }}</div>
+        {{ with .JSPBit.Code }}
+        <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-jsp text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-java">{{ . }}</code></pre>{{ end }}
       </div>
     </div>
   </div>
 <!-- Main Content Area -->
-  <div class="flex-1 min-h-0 overflow-auto grid gap-[2px] grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+  <div class="flex-1 min-h-0 overflow-auto grid gap-[2px] grid-cols-3 md:grid-cols-4"
     data-count="{{ len .Sources }}">
     {{ if .Sources }}
     {{ range .Sources }}
@@ -122,6 +134,47 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <script>
     hljs.highlightAll();
+
+    // Tab switching functionality
+    const tabs = document.querySelectorAll('.knowledge-tab');
+    const contents = document.querySelectorAll('.knowledge-content');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', function() {
+        const targetTab = this.getAttribute('data-tab');
+
+        // Update tab styles
+        tabs.forEach(t => {
+          t.classList.remove('border-b-2', 'border-java', 'border-jquery', 'border-jsp', 'bg-java/20', 'bg-jquery/20', 'bg-jsp/20', 'text-slate-700');
+          t.classList.add('text-slate-500');
+        });
+
+        this.classList.remove('text-slate-500');
+        this.classList.add('border-b-2', 'text-slate-700');
+
+        // Add appropriate border and background color based on tab
+        if (targetTab === 'java') {
+          this.classList.add('border-java', 'bg-java/20');
+        } else if (targetTab === 'jquery') {
+          this.classList.add('border-jquery', 'bg-jquery/20');
+        } else if (targetTab === 'jsp') {
+          this.classList.add('border-jsp', 'bg-jsp/20');
+        }
+
+        // Show/hide content
+        contents.forEach(content => {
+          if (content.getAttribute('data-content') === targetTab) {
+            content.classList.remove('hidden');
+          } else {
+            content.classList.add('hidden');
+          }
+        });
+
+        // Re-highlight code blocks in the newly visible content
+        hljs.highlightAll();
+      });
+    });
+
     const eventSource = new EventSource('/events');
 
     eventSource.onmessage = function(event) {

@@ -20,3 +20,8 @@ func GetKnowledgeBits() []KnowledgeBit {
 func GetJQueryBits() []KnowledgeBit {
 	return getJQueryBits()
 }
+
+// GetJSPBits returns JSP knowledge tidbits
+func GetJSPBits() []KnowledgeBit {
+	return getJSPBits()
+}

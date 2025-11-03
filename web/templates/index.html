@@ -15,7 +15,8 @@
           colors: {
             java: '#d4a574',
             jquery: '#54aeff',
-            modern: '#b392f0'
+            modern: '#b392f0',
+            jsp: '#f7931e'
           }
         }
       }
@@ -31,10 +32,13 @@
   <!-- Left Sidebar: Knowledge Section -->
   <div class="w-[600px] flex flex-col border-r border-blue-600 overflow-hidden bg-white">
     <!-- Header -->
-    <div
-      class="px-4 py-2 border-b {{ if .ShowJQuery }}border-jquery bg-jquery/20{{ else }}border-java bg-java/20{{ end }}">
+    <div class="px-4 py-2 border-b
+      {{ if eq .BitType "Java" }}border-java bg-java/20
+      {{ else if eq .BitType "jQuery" }}border-jquery bg-jquery/20
+      {{ else if eq .BitType "JSP" }}border-jsp bg-jsp/20
+      {{ end }}">
       <div class="text-[10px] font-bold uppercase tracking-wider text-slate-700">
-        {{ if .ShowJQuery }}jQuery{{ else }}Java{{ end }}
+        {{ .BitType }}
       </div>
     </div>
 
@@ -43,24 +47,27 @@
       <div class="w-full flex flex-col gap-2">
         <div class="text-[8px] uppercase tracking-wider text-slate-600">{{ .KnowledgeBit.Category }}</div>
         <div class="font-bold text-[10px] leading-tight text-slate-700">{{ .KnowledgeBit.Title }}</div>
-        <div class="text-[9px] leading-tight text-slate-600{{ if .ShowJQuery }} mb-2{{ end }}">{{ .KnowledgeBit.Description }}</div>
+        <div class="text-[9px] leading-tight text-slate-600{{ if eq .BitType "jQuery" }} mb-2{{ end }}">{{ .KnowledgeBit.Description }}</div>
 
-        {{ if .ShowJQuery }}
-        {{ with .KnowledgeBit.JQueryCode }}<div class="mb-3">
-          <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">jQuery</div>
-          <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-jquery text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-javascript">{{ . }}</code></pre>
-        </div>{{ end }}
-        {{ with .KnowledgeBit.HTMLCode }}<div class="mb-3">
-          <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">HTML</div>
-          <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-modern text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-html">{{ . }}</code></pre>
-        </div>{{ end }}
-        {{ with .KnowledgeBit.ModernCode }}<div class="mb-3">
-          <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">Modern</div>
-          <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-modern text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-javascript">{{ . }}</code></pre>
-        </div>{{ end }}
-        {{ else }}
-        {{ with .KnowledgeBit.Code }}
-        <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-java text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-java">{{ . }}</code></pre>{{ end }}
+        {{ if eq .BitType "jQuery" }}
+          {{ with .KnowledgeBit.JQueryCode }}<div class="mb-3">
+            <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">jQuery</div>
+            <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-jquery text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-javascript">{{ . }}</code></pre>
+          </div>{{ end }}
+          {{ with .KnowledgeBit.HTMLCode }}<div class="mb-3">
+            <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">HTML</div>
+            <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-modern text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-html">{{ . }}</code></pre>
+          </div>{{ end }}
+          {{ with .KnowledgeBit.ModernCode }}<div class="mb-3">
+            <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">Modern</div>
+            <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-modern text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-javascript">{{ . }}</code></pre>
+          </div>{{ end }}
+        {{ else if eq .BitType "Java" }}
+          {{ with .KnowledgeBit.Code }}
+          <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-java text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-java">{{ . }}</code></pre>{{ end }}
+        {{ else if eq .BitType "JSP" }}
+          {{ with .KnowledgeBit.Code }}
+          <pre class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-jsp text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-java">{{ . }}</code></pre>{{ end }}
         {{ end }}
       </div>
     </div>

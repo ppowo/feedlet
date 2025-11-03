@@ -286,32 +286,54 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return sources[i].NewestItemAge.After(sources[j].NewestItemAge)
 	})
 
-	// Select random knowledge bits - randomly choose between Java or jQuery
+	// Select random knowledge bits - randomly choose between Java, jQuery, or JSP
 	javaBits := knowledge.GetKnowledgeBits()
 	jqueryBits := knowledge.GetJQueryBits()
+	jspBits := knowledge.GetJSPBits()
 
-	// Randomly choose which type to show (0 = Java, 1 = jQuery)
-	showJQuery := secureRandomInt(2) == 1
-
+	// Check for type URL parameter (?type=java or ?type=jquery or ?type=jsp)
+	requestedType := r.URL.Query().Get("type")
 	var selectedBit knowledge.KnowledgeBit
-	if showJQuery {
-		selectedBit = jqueryBits[secureRandomInt(len(jqueryBits))]
-	} else {
+	var bitType string
+
+	switch requestedType {
+	case "java":
 		selectedBit = javaBits[secureRandomInt(len(javaBits))]
+		bitType = "Java"
+	case "jquery":
+		selectedBit = jqueryBits[secureRandomInt(len(jqueryBits))]
+		bitType = "jQuery"
+	case "jsp":
+		selectedBit = jspBits[secureRandomInt(len(jspBits))]
+		bitType = "JSP"
+	default:
+		// No type specified or invalid - choose randomly
+		typeChoice := secureRandomInt(3)
+		switch typeChoice {
+		case 0:
+			selectedBit = javaBits[secureRandomInt(len(javaBits))]
+			bitType = "Java"
+		case 1:
+			selectedBit = jqueryBits[secureRandomInt(len(jqueryBits))]
+			bitType = "jQuery"
+		case 2:
+			selectedBit = jspBits[secureRandomInt(len(jspBits))]
+			bitType = "JSP"
+		}
 	}
 
 	data := struct {
-		Sources       []Source
-		UpdatedAt     time.Time
-		Title         string
-		KnowledgeBit  knowledge.KnowledgeBit
-		ShowJQuery    bool
+		Sources      []Source
+		UpdatedAt    time.Time
+		Title        string
+		KnowledgeBit knowledge.KnowledgeBit
+		BitType      string
 	}{
 		Sources:      sources,
 		UpdatedAt:    feed.UpdatedAt,
 		Title:        "Feedlet",
 		KnowledgeBit: selectedBit,
-		ShowJQuery:   showJQuery,
+		BitType:      bitType,
 	}
 
 	if err := s.tmpl.Execute(w, data); err != nil {

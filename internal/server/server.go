@@ -286,26 +286,32 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return sources[i].NewestItemAge.After(sources[j].NewestItemAge)
 	})
 
-	// Select random knowledge bits - one Java, one jQuery
+	// Select random knowledge bits - randomly choose between Java or jQuery
 	javaBits := knowledge.GetKnowledgeBits()
 	jqueryBits := knowledge.GetJQueryBits()
-	randomJavaBit := javaBits[secureRandomInt(len(javaBits))]
-	randomJQueryBit := jqueryBits[secureRandomInt(len(jqueryBits))]
+
+	// Randomly choose which type to show (0 = Java, 1 = jQuery)
+	showJQuery := secureRandomInt(2) == 1
+
+	var selectedBit knowledge.KnowledgeBit
+	if showJQuery {
+		selectedBit = jqueryBits[secureRandomInt(len(jqueryBits))]
+	} else {
+		selectedBit = javaBits[secureRandomInt(len(javaBits))]
+	}
 
 	data := struct {
 		Sources       []Source
 		UpdatedAt     time.Time
 		Title         string
-		JavaBit       knowledge.KnowledgeBit
-		JQueryBit     knowledge.KnowledgeBit
-		KnowledgeBit  knowledge.KnowledgeBit // Keep for backward compatibility
+		KnowledgeBit  knowledge.KnowledgeBit
+		ShowJQuery    bool
 	}{
 		Sources:      sources,
 		UpdatedAt:    feed.UpdatedAt,
 		Title:        "Feedlet",
-		JavaBit:      randomJavaBit,
-		JQueryBit:    randomJQueryBit,
-		KnowledgeBit: randomJavaBit, // Keep for backward compatibility
+		KnowledgeBit: selectedBit,
+		ShowJQuery:   showJQuery,
 	}
 
 	if err := s.tmpl.Execute(w, data); err != nil {

@@ -39,7 +39,7 @@ func GetConfig() *models.Config {
 				URL:            "https://hnrss.org/newest?points=350",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           2,
+				Days:           1,
 			},
 			{
 				Name:           "r/thelastpsychiatrist",

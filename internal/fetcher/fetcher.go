@@ -15,15 +15,15 @@ import (
 
 // Fetcher manages fetching from multiple sources with semi-random intervals
 type Fetcher struct {
-	sources       []sourceWithConfig
-	feed          *models.Feed
-	mu            sync.RWMutex
-	subscribers   []chan struct{}
-	subMu         sync.Mutex
+	sources        []sourceWithConfig
+	feed           *models.Feed
+	mu             sync.RWMutex
+	subscribers    map[chan struct{}]struct{}
+	subMu          sync.Mutex
 	maxSubscribers int
-	lastFetch     map[string]time.Time
-	fetchMu       sync.Mutex
-	minInterval   time.Duration
+	lastFetch      map[string]time.Time
+	fetchMu        sync.Mutex
+	minInterval    time.Duration
 }
 
 // Config holds configuration for the fetcher
@@ -55,6 +55,7 @@ func NewWithConfig(sources []sourceWithConfig, cfg Config) *Fetcher {
 			UpdatedAt: time.Now(),
 			Errors:    make(map[string]string),
 		},
+		subscribers:    make(map[chan struct{}]struct{}),
 		maxSubscribers: cfg.MaxSubscribers,
 		lastFetch:      make(map[string]time.Time),
 		minInterval:    cfg.MinFetchInterval,
@@ -105,6 +106,7 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 			UpdatedAt: time.Now(),
 			Errors:    make(map[string]string),
 		},
+		subscribers:    make(map[chan struct{}]struct{}),
 		maxSubscribers: maxSubscribers,
 		lastFetch:      make(map[string]time.Time),
 		minInterval:    time.Duration(minFetchInterval) * time.Second,
@@ -159,23 +161,14 @@ func (f *Fetcher) fetchSource(ctx context.Context, src source.Source) {
 	log.Printf("Fetching from %s (%s)", src.Name(), src.Type())
 
 	// Check rate limiting
-	f.fetchMu.Lock()
-	lastFetch := f.lastFetch[src.Name()]
-	minInterval := f.getMinInterval()
-	f.fetchMu.Unlock()
-
-	if minInterval > 0 && lastFetch.Add(minInterval).After(time.Now()) {
-		waitTime := time.Since(lastFetch) - minInterval
-		log.Printf("Rate limiting %s: waiting %v", src.Name(), -waitTime)
+	if !f.checkRateLimit(src.Name()) {
 		return
 	}
 
 	items, err := src.Fetch(ctx)
 
 	// Update last fetch time
-	f.fetchMu.Lock()
-	f.lastFetch[src.Name()] = time.Now()
-	f.fetchMu.Unlock()
+	f.updateLastFetch(src.Name())
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -211,9 +204,34 @@ func (f *Fetcher) fetchSource(ctx context.Context, src source.Source) {
 	f.notifySubscribers()
 }
 
-// getMinInterval returns the minimum interval between fetches (0 if not configured)
-func (f *Fetcher) getMinInterval() time.Duration {
-	return f.minInterval
+// checkRateLimit checks if a source can be fetched based on rate limiting
+func (f *Fetcher) checkRateLimit(sourceName string) bool {
+	if f.minInterval == 0 {
+		return true
+	}
+
+	f.fetchMu.Lock()
+	defer f.fetchMu.Unlock()
+
+	lastFetch, exists := f.lastFetch[sourceName]
+	if !exists {
+		return true
+	}
+
+	if time.Since(lastFetch) < f.minInterval {
+		waitTime := f.minInterval - time.Since(lastFetch)
+		log.Printf("Rate limiting %s: need to wait %v", sourceName, waitTime)
+		return false
+	}
+
+	return true
+}
+
+// updateLastFetch updates the last fetch time for a source
+func (f *Fetcher) updateLastFetch(sourceName string) {
+	f.fetchMu.Lock()
+	defer f.fetchMu.Unlock()
+	f.lastFetch[sourceName] = time.Now()
 }
 
 // Subscribe returns a channel that receives notifications when feed updates
@@ -227,7 +245,7 @@ func (f *Fetcher) Subscribe() (chan struct{}, error) {
 	}
 
 	ch := make(chan struct{}, 1)
-	f.subscribers = append(f.subscribers, ch)
+	f.subscribers[ch] = struct{}{}
 	return ch, nil
 }
 
@@ -236,12 +254,9 @@ func (f *Fetcher) Unsubscribe(ch chan struct{}) {
 	f.subMu.Lock()
 	defer f.subMu.Unlock()
 
-	for i, sub := range f.subscribers {
-		if sub == ch {
-			f.subscribers = append(f.subscribers[:i], f.subscribers[i+1:]...)
-			close(ch)
-			break
-		}
+	if _, exists := f.subscribers[ch]; exists {
+		delete(f.subscribers, ch)
+		close(ch)
 	}
 }
 
@@ -250,7 +265,7 @@ func (f *Fetcher) notifySubscribers() {
 	f.subMu.Lock()
 	defer f.subMu.Unlock()
 
-	for _, ch := range f.subscribers {
+	for ch := range f.subscribers {
 		select {
 		case ch <- struct{}{}:
 		default:

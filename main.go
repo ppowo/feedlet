@@ -19,17 +19,17 @@ import (
 
 func main() {
 	// Setup logging
-	if err := logging.Setup(); err != nil {
+	if err := logging.Setup(context.Background()); err != nil {
 		log.Fatalf("Failed to setup logging: %v", err)
 	}
 
 	// Load embedded configuration
 	cfg := config.GetConfig()
 
-	// Create fetcher
-	f := fetcher.NewFromConfigs(cfg.Sources)
+	// Create fetcher with configuration
+	f := fetcher.NewFromConfigs(cfg.Sources, cfg.MinFetchInterval, cfg.MaxSubscribers)
 
-	// Start fetcher in background
+	// Start fetcher in background (no need to wait for initial fetch)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

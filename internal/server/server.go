@@ -93,7 +93,12 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 
 	// Subscribe to feed updates
-	updateCh := s.fetcher.Subscribe()
+	updateCh, err := s.fetcher.Subscribe()
+	if err != nil {
+		log.Printf("Failed to subscribe: %v", err)
+		http.Error(w, "Server at capacity", http.StatusServiceUnavailable)
+		return
+	}
 	defer s.fetcher.Unsubscribe(updateCh)
 
 	// Send ping on connect

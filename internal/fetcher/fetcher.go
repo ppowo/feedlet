@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"maps"
 	"math/rand"
@@ -14,11 +15,21 @@ import (
 
 // Fetcher manages fetching from multiple sources with semi-random intervals
 type Fetcher struct {
-	sources     []sourceWithConfig
-	feed        *models.Feed
-	mu          sync.RWMutex
-	subscribers []chan struct{}
-	subMu       sync.Mutex
+	sources       []sourceWithConfig
+	feed          *models.Feed
+	mu            sync.RWMutex
+	subscribers   []chan struct{}
+	subMu         sync.Mutex
+	maxSubscribers int
+	lastFetch     map[string]time.Time
+	fetchMu       sync.Mutex
+	minInterval   time.Duration
+}
+
+// Config holds configuration for the fetcher
+type Config struct {
+	MaxSubscribers int
+	MinFetchInterval time.Duration
 }
 
 type sourceWithConfig struct {
@@ -27,8 +38,16 @@ type sourceWithConfig struct {
 	intervalJitter time.Duration
 }
 
-// New creates a new Fetcher
+// New creates a new Fetcher with default config
 func New(sources []sourceWithConfig) *Fetcher {
+	return NewWithConfig(sources, Config{
+		MaxSubscribers:     1000,
+		MinFetchInterval:   0,
+	})
+}
+
+// NewWithConfig creates a new Fetcher with custom configuration
+func NewWithConfig(sources []sourceWithConfig, cfg Config) *Fetcher {
 	return &Fetcher{
 		sources: sources,
 		feed: &models.Feed{
@@ -36,11 +55,14 @@ func New(sources []sourceWithConfig) *Fetcher {
 			UpdatedAt: time.Now(),
 			Errors:    make(map[string]string),
 		},
+		maxSubscribers: cfg.MaxSubscribers,
+		lastFetch:      make(map[string]time.Time),
+		minInterval:    cfg.MinFetchInterval,
 	}
 }
 
 // NewFromConfigs creates a new Fetcher from source configs
-func NewFromConfigs(configs []models.SourceConfig) *Fetcher {
+func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubscribers int) *Fetcher {
 	sources := make([]sourceWithConfig, 0, len(configs))
 
 	for _, cfg := range configs {
@@ -76,10 +98,20 @@ func NewFromConfigs(configs []models.SourceConfig) *Fetcher {
 		})
 	}
 
-	return New(sources)
+	return &Fetcher{
+		sources: sources,
+		feed: &models.Feed{
+			Items:     make([]models.Item, 0),
+			UpdatedAt: time.Now(),
+			Errors:    make(map[string]string),
+		},
+		maxSubscribers: maxSubscribers,
+		lastFetch:      make(map[string]time.Time),
+		minInterval:    time.Duration(minFetchInterval) * time.Second,
+	}
 }
 
-// Start begins fetching from all sources
+// Start begins fetching from all sources in background
 func (f *Fetcher) Start(ctx context.Context) {
 	var wg sync.WaitGroup
 
@@ -126,7 +158,24 @@ func (f *Fetcher) nextInterval(sc sourceWithConfig) time.Duration {
 func (f *Fetcher) fetchSource(ctx context.Context, src source.Source) {
 	log.Printf("Fetching from %s (%s)", src.Name(), src.Type())
 
+	// Check rate limiting
+	f.fetchMu.Lock()
+	lastFetch := f.lastFetch[src.Name()]
+	minInterval := f.getMinInterval()
+	f.fetchMu.Unlock()
+
+	if minInterval > 0 && lastFetch.Add(minInterval).After(time.Now()) {
+		waitTime := time.Since(lastFetch) - minInterval
+		log.Printf("Rate limiting %s: waiting %v", src.Name(), -waitTime)
+		return
+	}
+
 	items, err := src.Fetch(ctx)
+
+	// Update last fetch time
+	f.fetchMu.Lock()
+	f.lastFetch[src.Name()] = time.Now()
+	f.fetchMu.Unlock()
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -162,14 +211,24 @@ func (f *Fetcher) fetchSource(ctx context.Context, src source.Source) {
 	f.notifySubscribers()
 }
 
+// getMinInterval returns the minimum interval between fetches (0 if not configured)
+func (f *Fetcher) getMinInterval() time.Duration {
+	return f.minInterval
+}
+
 // Subscribe returns a channel that receives notifications when feed updates
-func (f *Fetcher) Subscribe() chan struct{} {
+func (f *Fetcher) Subscribe() (chan struct{}, error) {
 	f.subMu.Lock()
 	defer f.subMu.Unlock()
 
+	// Check if we've reached the subscriber limit
+	if f.maxSubscribers > 0 && len(f.subscribers) >= f.maxSubscribers {
+		return nil, fmt.Errorf("subscriber limit reached (max: %d)", f.maxSubscribers)
+	}
+
 	ch := make(chan struct{}, 1)
 	f.subscribers = append(f.subscribers, ch)
-	return ch
+	return ch, nil
 }
 
 // Unsubscribe removes a subscriber channel

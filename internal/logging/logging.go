@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -14,12 +15,13 @@ var (
 	currentLogFile *os.File
 	logDir         string
 	mu             sync.Mutex
+	cleanupDone    chan struct{}
 )
 
 // Setup configures logging to write to both stdout and a log file in the OS log directory
 // Old log files (older than 3 days) are automatically cleaned up
 // Starts a background goroutine to rotate logs daily
-func Setup() error {
+func Setup(ctx context.Context) error {
 	// Get OS-specific log directory
 	var err error
 	logDir, err = getLogDir()
@@ -42,8 +44,11 @@ func Setup() error {
 		log.Printf("Warning: failed to clean old logs: %v", err)
 	}
 
+	// Initialize cleanup done channel
+	cleanupDone = make(chan struct{})
+
 	// Start background goroutine for daily rotation and cleanup
-	go dailyRotation()
+	go dailyRotation(ctx, cleanupDone)
 
 	return nil
 }
@@ -77,7 +82,7 @@ func rotateLogFile() error {
 }
 
 // dailyRotation runs in the background to rotate logs at midnight and clean old logs
-func dailyRotation() {
+func dailyRotation(ctx context.Context, done chan struct{}) {
 	for {
 		// Calculate time until next midnight
 		now := time.Now()
@@ -85,8 +90,17 @@ func dailyRotation() {
 		nextMidnight := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 0, 0, 0, 0, now.Location())
 		duration := nextMidnight.Sub(now)
 
-		// Sleep until midnight
-		time.Sleep(duration)
+		// Sleep until midnight or context is cancelled
+		select {
+		case <-time.After(duration):
+			// Time to rotate
+		case <-ctx.Done():
+			log.Println("Daily rotation cancelled via context")
+			return
+		case <-done:
+			log.Println("Daily rotation cancelled")
+			return
+		}
 
 		// Rotate log file
 		if err := rotateLogFile(); err != nil {
@@ -96,6 +110,14 @@ func dailyRotation() {
 		// Clean up old logs
 		if err := cleanOldLogs(logDir); err != nil {
 			log.Printf("Warning: failed to clean old logs: %v", err)
+		}
+
+		// Check if we're shutting down
+		select {
+		case <-done:
+			log.Println("Daily rotation shutting down")
+			return
+		default:
 		}
 	}
 }

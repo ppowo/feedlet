@@ -39,6 +39,8 @@ type SourceConfig struct {
 
 // Config represents the application configuration
 type Config struct {
-	Sources []SourceConfig `yaml:"sources"`
-	Port    int            `yaml:"port"`
+	Sources         []SourceConfig `yaml:"sources"`
+	Port            int            `yaml:"port"`
+	MinFetchInterval int           `yaml:"min_fetch_interval"` // Minimum interval between fetches in seconds (0 = no limit)
+	MaxSubscribers  int            `yaml:"max_subscribers"`    // Maximum concurrent subscribers (0 = unlimited)
 }

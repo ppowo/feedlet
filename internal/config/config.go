@@ -7,7 +7,9 @@ import (
 // GetConfig returns the embedded application configuration
 func GetConfig() *models.Config {
 	return &models.Config{
-		Port: 3737,
+		Port:             3737,
+		MinFetchInterval: 5, // Default 5 second minimum between fetches per source
+		MaxSubscribers:   1000,
 		Sources: []models.SourceConfig{
 			{
 				Name:           "r/italiacareeradvice",

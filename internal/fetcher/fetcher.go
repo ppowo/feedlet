@@ -24,6 +24,12 @@ type Fetcher struct {
 	lastFetch      map[string]time.Time
 	fetchMu        sync.Mutex
 	minInterval    time.Duration
+	wg             sync.WaitGroup
+	closed         bool
+	closedMu       sync.Mutex
+	subOnce        map[chan struct{}]*sync.Once
+	rng            *rand.Rand
+	rngMu          sync.Mutex
 }
 
 // Config holds configuration for the fetcher
@@ -56,9 +62,11 @@ func NewWithConfig(sources []sourceWithConfig, cfg Config) *Fetcher {
 			Errors:    make(map[string]string),
 		},
 		subscribers:    make(map[chan struct{}]struct{}),
+		subOnce:        make(map[chan struct{}]*sync.Once),
 		maxSubscribers: cfg.MaxSubscribers,
 		lastFetch:      make(map[string]time.Time),
 		minInterval:    cfg.MinFetchInterval,
+		rng:            rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
@@ -107,16 +115,20 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 			Errors:    make(map[string]string),
 		},
 		subscribers:    make(map[chan struct{}]struct{}),
+		subOnce:        make(map[chan struct{}]*sync.Once),
 		maxSubscribers: maxSubscribers,
 		lastFetch:      make(map[string]time.Time),
 		minInterval:    time.Duration(minFetchInterval) * time.Second,
+		rng:            rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
 // Start begins fetching from all sources in background
 func (f *Fetcher) Start(ctx context.Context) {
 	for _, sc := range f.sources {
+		f.wg.Add(1)
 		go func(sc sourceWithConfig) {
+			defer f.wg.Done()
 			f.fetchLoop(ctx, sc)
 		}(sc)
 	}
@@ -155,7 +167,10 @@ func (f *Fetcher) nextInterval(sc sourceWithConfig) time.Duration {
 	if sc.intervalJitter == 0 {
 		return sc.interval
 	}
-	jitter := time.Duration(rand.Int63n(int64(sc.intervalJitter)))
+	// Use shared random generator with mutex protection
+	f.rngMu.Lock()
+	defer f.rngMu.Unlock()
+	jitter := time.Duration(f.rng.Int63n(int64(sc.intervalJitter)))
 	return sc.interval + jitter
 }
 
@@ -163,15 +178,31 @@ func (f *Fetcher) nextInterval(sc sourceWithConfig) time.Duration {
 func (f *Fetcher) fetchSource(ctx context.Context, src source.Source) {
 	log.Printf("Fetching from %s (%s)", src.Name(), src.Type())
 
-	// Check rate limiting
-	if !f.checkRateLimit(src.Name()) {
+	// Check rate limiting and update last fetch time atomically under the same lock
+	f.fetchMu.Lock()
+	allow := true
+	if f.minInterval > 0 {
+		lastFetch, exists := f.lastFetch[src.Name()]
+		if exists && time.Since(lastFetch) < f.minInterval {
+			waitTime := f.minInterval - time.Since(lastFetch)
+			log.Printf("Rate limiting %s: need to wait %v", src.Name(), waitTime)
+			allow = false
+		}
+	}
+	if allow {
+		f.lastFetch[src.Name()] = time.Now()
+	}
+	f.fetchMu.Unlock()
+
+	if !allow {
 		return
 	}
 
-	items, err := src.Fetch(ctx)
+	// Create timeout context for the fetch operation
+	fetchCtx, fetchCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer fetchCancel()
 
-	// Update last fetch time
-	f.updateLastFetch(src.Name())
+	items, err := src.Fetch(fetchCtx)
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -207,34 +238,16 @@ func (f *Fetcher) fetchSource(ctx context.Context, src source.Source) {
 	f.notifySubscribers()
 }
 
-// checkRateLimit checks if a source can be fetched based on rate limiting
-func (f *Fetcher) checkRateLimit(sourceName string) bool {
-	if f.minInterval == 0 {
-		return true
-	}
+// Shutdown stops all fetch goroutines and waits for them to complete
+func (f *Fetcher) Shutdown() error {
+	// Mark as closed to prevent new subscriptions
+	f.closedMu.Lock()
+	f.closed = true
+	f.closedMu.Unlock()
 
-	f.fetchMu.Lock()
-	defer f.fetchMu.Unlock()
-
-	lastFetch, exists := f.lastFetch[sourceName]
-	if !exists {
-		return true
-	}
-
-	if time.Since(lastFetch) < f.minInterval {
-		waitTime := f.minInterval - time.Since(lastFetch)
-		log.Printf("Rate limiting %s: need to wait %v", sourceName, waitTime)
-		return false
-	}
-
-	return true
-}
-
-// updateLastFetch updates the last fetch time for a source
-func (f *Fetcher) updateLastFetch(sourceName string) {
-	f.fetchMu.Lock()
-	defer f.fetchMu.Unlock()
-	f.lastFetch[sourceName] = time.Now()
+	// Wait for all fetch goroutines to complete
+	f.wg.Wait()
+	return nil
 }
 
 // Subscribe returns a channel that receives notifications when feed updates
@@ -247,8 +260,18 @@ func (f *Fetcher) Subscribe() (chan struct{}, error) {
 		return nil, fmt.Errorf("subscriber limit reached (max: %d)", f.maxSubscribers)
 	}
 
+	// Check if fetcher is closed (under its own mutex)
+	f.closedMu.Lock()
+	isClosed := f.closed
+	f.closedMu.Unlock()
+
+	if isClosed {
+		return nil, fmt.Errorf("fetcher is closed")
+	}
+
 	ch := make(chan struct{}, 1)
 	f.subscribers[ch] = struct{}{}
+	f.subOnce[ch] = &sync.Once{}
 	return ch, nil
 }
 
@@ -259,7 +282,13 @@ func (f *Fetcher) Unsubscribe(ch chan struct{}) {
 
 	if _, exists := f.subscribers[ch]; exists {
 		delete(f.subscribers, ch)
-		close(ch)
+		// Use sync.Once to prevent double-close
+		if once, ok := f.subOnce[ch]; ok {
+			once.Do(func() {
+				close(ch)
+			})
+		}
+		delete(f.subOnce, ch)
 	}
 }
 

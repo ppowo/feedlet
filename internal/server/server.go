@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
@@ -23,6 +24,7 @@ type Server struct {
 	port         int
 	sourceLimits map[string]int
 	sourceDays   map[string]int
+	httpServer   *http.Server
 }
 
 // New creates a new server from embedded template content
@@ -66,23 +68,34 @@ func New(f *fetcher.Fetcher, templateContent string, port int, sourceLimits map[
 		return nil, fmt.Errorf("failed to parse template: %w", err)
 	}
 
-	return &Server{
+	s := &Server{
 		fetcher:      f,
 		tmpl:         tmpl,
 		port:         port,
 		sourceLimits: sourceLimits,
 		sourceDays:   sourceDays,
-	}, nil
+		httpServer: &http.Server{
+			Addr: fmt.Sprintf(":%d", port),
+		},
+	}
+
+	// Setup routes
+	http.HandleFunc("/", s.handleIndex)
+	http.HandleFunc("/events", s.handleSSE)
+
+	return s, nil
 }
 
 // Start starts the HTTP server
 func (s *Server) Start() error {
-	http.HandleFunc("/", s.handleIndex)
-	http.HandleFunc("/events", s.handleSSE)
+	log.Printf("Starting server on http://localhost:%d", s.port)
+	return s.httpServer.ListenAndServe()
+}
 
-	addr := fmt.Sprintf(":%d", s.port)
-	log.Printf("Starting server on http://localhost%s", addr)
-	return http.ListenAndServe(addr, nil)
+// Shutdown gracefully shuts down the HTTP server
+func (s *Server) Shutdown(ctx context.Context) error {
+	log.Println("Shutting down HTTP server...")
+	return s.httpServer.Shutdown(ctx)
 }
 
 // handleSSE serves server-sent events for feed updates
@@ -220,11 +233,10 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	// Add sources with no items (but are configured and enabled)
 	// We need to track which sources exist from the original feed before filtering
-	feedBeforeFilter := s.fetcher.GetFeed()
 	allSources := make(map[string]bool)
 	sourceIgnoreDays := make(map[string]bool)
 	sourceNSFW := make(map[string]bool)
-	for _, item := range feedBeforeFilter.Items {
+	for _, item := range feed.Items {
 		allSources[item.SourceName] = true
 		if item.IgnoreDays {
 			sourceIgnoreDays[item.SourceName] = true

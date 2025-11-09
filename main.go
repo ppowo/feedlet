@@ -35,11 +35,13 @@ func main() {
 	// Create fetcher with configuration
 	f := fetcher.NewFromConfigs(cfg.Sources, cfg.MinFetchInterval, cfg.MaxSubscribers)
 
-	// Start fetcher in background (no need to wait for initial fetch)
+	// Start fetcher in background
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Give fetcher a moment to initialize
 	go f.Start(ctx)
+	time.Sleep(100 * time.Millisecond)
 
 	// Create and start server
 	port := cfg.Port
@@ -76,13 +78,29 @@ func main() {
 			log.Println("Shutting down...")
 			cancel()
 
-			// Give goroutines time to shut down gracefully
-			shutdownTimeout := time.After(3 * time.Second)
+			// Shutdown HTTP server
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer shutdownCancel()
 
-			// Wait for shutdown or timeout
-			<-shutdownTimeout
+			if err := srv.Shutdown(shutdownCtx); err != nil {
+				log.Printf("Server shutdown error: %v", err)
+			}
 
-			// Cleanup logging goroutine
+			// Wait for fetcher goroutines to complete with timeout
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				f.Shutdown()
+			}()
+
+			select {
+			case <-done:
+				log.Println("Fetcher shutdown complete")
+			case <-time.After(10 * time.Second):
+				log.Println("Fetcher shutdown timeout - proceeding anyway")
+			}
+
+			// Cleanup logging goroutine (this now waits for completion)
 			logging.Cleanup()
 		})
 	}()

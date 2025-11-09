@@ -17,6 +17,8 @@ var (
 	mu             sync.Mutex
 	cleanupDone    chan struct{}
 	cleanupOnce    sync.Once
+	wg             sync.WaitGroup
+	fileMu         sync.Mutex
 )
 
 // Setup configures logging to write to both stdout and a log file in the OS log directory
@@ -49,7 +51,11 @@ func Setup(ctx context.Context) error {
 	cleanupDone = make(chan struct{})
 
 	// Start background goroutine for daily rotation and cleanup
-	go dailyRotation(ctx, cleanupDone)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		dailyRotation(ctx, cleanupDone)
+	}()
 
 	return nil
 }
@@ -60,13 +66,15 @@ func Cleanup() {
 		if cleanupDone != nil {
 			close(cleanupDone)
 		}
+		// Wait for the dailyRotation goroutine to complete
+		wg.Wait()
 	})
 }
 
 // rotateLogFile closes the current log file and opens a new one for today
 func rotateLogFile() error {
-	mu.Lock()
-	defer mu.Unlock()
+	fileMu.Lock()
+	defer fileMu.Unlock()
 
 	// Close existing file if open
 	if currentLogFile != nil {

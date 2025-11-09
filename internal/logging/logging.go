@@ -16,6 +16,7 @@ var (
 	logDir         string
 	mu             sync.Mutex
 	cleanupDone    chan struct{}
+	cleanupOnce    sync.Once
 )
 
 // Setup configures logging to write to both stdout and a log file in the OS log directory
@@ -51,6 +52,15 @@ func Setup(ctx context.Context) error {
 	go dailyRotation(ctx, cleanupDone)
 
 	return nil
+}
+
+// Cleanup stops the daily rotation goroutine and cleans up resources
+func Cleanup() {
+	cleanupOnce.Do(func() {
+		if cleanupDone != nil {
+			close(cleanupDone)
+		}
+	})
 }
 
 // rotateLogFile closes the current log file and opens a new one for today

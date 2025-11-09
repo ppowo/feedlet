@@ -8,13 +8,19 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/ppowo/feedlet/internal/config"
 	"github.com/ppowo/feedlet/internal/fetcher"
 	"github.com/ppowo/feedlet/internal/logging"
 	"github.com/ppowo/feedlet/internal/server"
 	"github.com/ppowo/feedlet/web"
+)
+
+var (
+	shutdownOnce sync.Once
 )
 
 func main() {
@@ -66,9 +72,19 @@ func main() {
 
 	go func() {
 		<-sigChan
-		log.Println("Shutting down...")
-		cancel()
-		os.Exit(0)
+		shutdownOnce.Do(func() {
+			log.Println("Shutting down...")
+			cancel()
+
+			// Give goroutines time to shut down gracefully
+			shutdownTimeout := time.After(3 * time.Second)
+
+			// Wait for shutdown or timeout
+			<-shutdownTimeout
+
+			// Cleanup logging goroutine
+			logging.Cleanup()
+		})
 	}()
 
 	if err := srv.Start(); err != nil {

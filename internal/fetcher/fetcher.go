@@ -115,21 +115,20 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 
 // Start begins fetching from all sources in background
 func (f *Fetcher) Start(ctx context.Context) {
-	var wg sync.WaitGroup
-
 	for _, sc := range f.sources {
-		wg.Add(1)
 		go func(sc sourceWithConfig) {
-			defer wg.Done()
 			f.fetchLoop(ctx, sc)
 		}(sc)
 	}
-
-	wg.Wait()
 }
 
 // fetchLoop runs a fetch loop for a single source with semi-random intervals
 func (f *Fetcher) fetchLoop(ctx context.Context, sc sourceWithConfig) {
+	// Check if context is already cancelled
+	if ctx.Err() != nil {
+		return
+	}
+
 	// Fetch immediately on start
 	f.fetchSource(ctx, sc.source)
 
@@ -141,6 +140,10 @@ func (f *Fetcher) fetchLoop(ctx context.Context, sc sourceWithConfig) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			// Check context before fetching
+			if ctx.Err() != nil {
+				return
+			}
 			f.fetchSource(ctx, sc.source)
 			ticker.Reset(f.nextInterval(sc))
 		}

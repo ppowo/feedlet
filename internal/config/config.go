@@ -28,6 +28,14 @@ func GetConfig() *models.Config {
 				Days:           6,
 			},
 			{
+				Name:           "r/consulentidellavoro",
+				Type:           "reddit",
+				URL:            "https://old.reddit.com/r/consulentidellavoro/top/.rss?t=year",
+				Interval:       1800,
+				IntervalJitter: 120,
+				Days:           10,
+			},
+			{
 				Name:           "r/programming",
 				Type:           "reddit",
 				URL:            "https://old.reddit.com/r/programming/top/.rss?t=month",

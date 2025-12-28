@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/araddon/dateparse"
 	"github.com/ppowo/feedlet/internal/models"
 )
 
@@ -232,21 +233,9 @@ func parseWikipediaDate(dateStr string) time.Time {
 		return time.Now()
 	}
 
-	// Go's time.Parse handles both full and abbreviated month names with these formats
-	formats := []string{
-		"January 2, 2006", // Handles all full month names (January, February, etc.)
-		"Jan 2, 2006",     // Handles all abbreviated month names (Jan, Feb, etc.)
-		"January 2 2006",  // Without comma
-		"2006-01-02",
-		"02/01/2006",
+	if t, err := dateparse.ParseAny(cleanDate); err == nil {
+		return t
 	}
-
-	for _, format := range formats {
-		if t, err := time.Parse(format, cleanDate); err == nil {
-			return t
-		}
-	}
-
 	return time.Now()
 }
 

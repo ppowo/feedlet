@@ -106,13 +106,12 @@ func GetConfig() *models.Config {
 				Limit:          6,
 			},
 			{
-				Name:           "Sam Hyde Archive",
-				Type:           "payangel",
-				URL:            "https://rentry.org/payangel",
-				Interval:       3600,
-				IntervalJitter: 300,
-				IgnoreDays:     true,
-				Limit:          6, // 2 items from each of the 3 sections
+				Name:           "r/Grimdank",
+				Type:           "reddit",
+				URL:            "https://old.reddit.com/r/Grimdank/top/.rss?t=month",
+				Interval:       1800,
+				IntervalJitter: 120,
+				Days:           5,
 			},
 		},
 	}

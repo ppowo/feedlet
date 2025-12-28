@@ -25,7 +25,7 @@ var (
 
 func main() {
 	// Setup logging
-	if err := logging.Setup(context.Background()); err != nil {
+	if err := logging.Setup(); err != nil {
 		log.Fatalf("Failed to setup logging: %v", err)
 	}
 
@@ -99,9 +99,6 @@ func main() {
 			case <-time.After(10 * time.Second):
 				log.Println("Fetcher shutdown timeout - proceeding anyway")
 			}
-
-			// Cleanup logging goroutine (this now waits for completion)
-			logging.Cleanup()
 		})
 	}()
 

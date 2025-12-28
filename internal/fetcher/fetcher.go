@@ -78,23 +78,19 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 		var src source.Source
 		switch cfg.Type {
 		case "rss":
-			src = source.NewRSSSource(cfg.Name, cfg.URL)
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "rss", false, false)
 		case "hnrss":
-			src = source.NewHNRSSSource(cfg.Name, cfg.URL)
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "hnrss", true, false)
 		case "reddit":
-			src = source.NewRedditSource(cfg.Name, cfg.URL, cfg.IgnoreDays)
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "reddit", false, cfg.IgnoreDays)
 		case "lobsters":
-			src = source.NewLobstersSource(cfg.Name, cfg.URL)
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "lobsters", true, false)
 		case "4plebs":
 			src = source.NewFourPlebsSource(cfg.Name, cfg.URL, cfg.Limit, cfg.NSFW)
 		case "desuarchive":
 			src = source.NewDesuArchiveSource(cfg.Name, cfg.URL, cfg.Limit, cfg.NSFW)
 		case "wikipedia":
 			src = source.NewWikipediaSource(cfg.Name, cfg.URL, cfg.Limit)
-		case "payangel":
-			// For payangel, fetch from all sections
-			sections := []string{"SHS", "SHS-Overtime", "FleshSim"}
-			src = source.NewPayAngelSource(cfg.Name, cfg.URL, sections, cfg.Limit)
 		default:
 			log.Printf("Unknown source type: %s", cfg.Type)
 			continue

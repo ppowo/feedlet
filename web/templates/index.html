@@ -8,104 +8,18 @@
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            java: '#d4a574',
-            jquery: '#54aeff',
-            modern: '#b392f0',
-            jsp: '#f7931e'
-          }
-        }
-      }
-    }
-  </script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
-  <style>
-    .knowledge-code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      line-height: 1.1 !important;
-    }
-  </style>
 </head>
 
-<body class="flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-slate-100 text-slate-800">
-  <!-- Left Sidebar: Knowledge Section -->
-  <div
-    class="w-full lg:w-[600px] flex flex-col border-b lg:border-b-0 lg:border-r border-blue-600 bg-white lg:overflow-hidden"
-    x-data="{ activeTab: '{{ .ActiveTab }}' }">
-    <!-- Tab Navigation -->
-    <div class="flex border-b border-slate-300">
-      <button @click="activeTab = 'java'"
-        class="flex-1 px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-slate-50"
-        :class="activeTab === 'java' ? 'border-b-2 border-java bg-java/20 text-slate-700' : 'text-slate-500'">
-        Java
-      </button>
-      <button @click="activeTab = 'jquery'"
-        class="flex-1 px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-slate-50"
-        :class="activeTab === 'jquery' ? 'border-b-2 border-jquery bg-jquery/20 text-slate-700' : 'text-slate-500'">
-        jQuery
-      </button>
-      <button @click="activeTab = 'jsp'"
-        class="flex-1 px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-slate-50"
-        :class="activeTab === 'jsp' ? 'border-b-2 border-jsp bg-jsp/20 text-slate-700' : 'text-slate-500'">
-        JSP
-      </button>
-    </div>
+<body class="flex flex-col h-screen overflow-hidden bg-slate-100 text-slate-800">
+  <!-- Knowledge Question Line -->
+  <a href="https://duckduckgo.com/?q={{ .KnowledgeBit.SearchTerm }}" target="_blank" rel="noopener noreferrer"
+    class="block text-center py-2 text-sm text-blue-600 hover:text-blue-800 hover:underline bg-white border-b border-slate-300 flex-shrink-0">
+    {{ .KnowledgeBit.Question }}
+  </a>
 
-    <!-- Content -->
-    <div class="flex-1 overflow-auto p-3 flex items-center justify-center">
-      <!-- Java Content -->
-      <div class="w-full flex flex-col gap-2" x-show="activeTab === 'java'">
-        <div class="text-[8px] uppercase tracking-wider text-slate-600">{{ .JavaBit.Category }}</div>
-        <div class="font-bold text-[10px] leading-tight text-slate-700">{{ .JavaBit.Title }}</div>
-        <div class="text-[9px] leading-tight text-slate-600">{{ .JavaBit.Description }}</div>
-        {{ with .JavaBit.Code }}
-        <pre
-          class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-java text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-java">{{ . }}</code></pre>
-        {{ end }}
-      </div>
-
-      <!-- jQuery Content -->
-      <div class="w-full flex flex-col gap-2" x-show="activeTab === 'jquery'">
-        <div class="text-[8px] uppercase tracking-wider text-slate-600">{{ .JQueryBit.Category }}</div>
-        <div class="font-bold text-[10px] leading-tight text-slate-700">{{ .JQueryBit.Title }}</div>
-        <div class="text-[9px] leading-tight text-slate-600 mb-2">{{ .JQueryBit.Description }}</div>
-        {{ with .JQueryBit.JQueryCode }}<div class="mb-3">
-          <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">jQuery</div>
-          <pre
-            class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-jquery text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-javascript">{{ . }}</code></pre>
-        </div>{{ end }}
-        {{ with .JQueryBit.HTMLCode }}<div class="mb-3">
-          <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">HTML</div>
-          <pre
-            class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-modern text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-html">{{ . }}</code></pre>
-        </div>{{ end }}
-        {{ with .JQueryBit.ModernCode }}<div class="mb-3">
-          <div class="text-[8px] uppercase tracking-wider text-slate-600 mb-1">Modern</div>
-          <pre
-            class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-modern text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-javascript">{{ . }}</code></pre>
-        </div>{{ end }}
-      </div>
-
-      <!-- JSP Content -->
-      <div class="w-full flex flex-col gap-2" x-show="activeTab === 'jsp'">
-        <div class="text-[8px] uppercase tracking-wider text-slate-600">{{ .JSPBit.Category }}</div>
-        <div class="font-bold text-[10px] leading-tight text-slate-700">{{ .JSPBit.Title }}</div>
-        <div class="text-[9px] leading-tight text-slate-600">{{ .JSPBit.Description }}</div>
-        {{ with .JSPBit.Code }}
-        <pre
-          class="knowledge-code bg-slate-50 p-2 rounded border-l-4 border-jsp text-[8px] whitespace-pre-wrap break-words shadow-sm"><code class="language-html">{{ . }}</code></pre>
-        {{ end }}
-      </div>
-    </div>
-  </div>
   <!-- Main Content Area -->
   <div
-    class="flex-1 lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden grid gap-[2px] grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-max lg:auto-rows-fr lg:p-[2px]"
+    class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden grid gap-[2px] grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-max lg:auto-rows-fr p-[2px]"
     data-count="{{ len .Sources }}">
     {{ if .Sources }}
     {{ range .Sources }}
@@ -152,9 +66,7 @@
     </div>
     {{ end }}
   </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <script>
-    hljs.highlightAll();
     const eventSource = new EventSource('/events');
 
     eventSource.onmessage = function(event) {

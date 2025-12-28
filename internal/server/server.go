@@ -2,16 +2,14 @@ package server
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/binary"
 	"fmt"
 	"html/template"
 	"log"
-	mrand "math/rand"
 	"net/http"
 	"sort"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/ppowo/feedlet/internal/aggregator"
 	"github.com/ppowo/feedlet/internal/fetcher"
 	"github.com/ppowo/feedlet/internal/knowledge"
@@ -31,36 +29,8 @@ type Server struct {
 func New(f *fetcher.Fetcher, templateContent string, port int, sourceLimits map[string]int, sourceDays map[string]int) (*Server, error) {
 	// Custom template functions
 	funcMap := template.FuncMap{
-		"formatTime": func(t time.Time) string {
-			return t.Format("Jan 2, 2006 3:04 PM")
-		},
-		"formatTimeAgo": func(t time.Time) string {
-			duration := time.Since(t)
-			switch {
-			case duration < time.Minute:
-				return "just now"
-			case duration < time.Hour:
-				minutes := int(duration.Minutes())
-				if minutes == 1 {
-					return "1 minute ago"
-				}
-				return fmt.Sprintf("%d minutes ago", minutes)
-			case duration < 24*time.Hour:
-				hours := int(duration.Hours())
-				if hours == 1 {
-					return "1 hour ago"
-				}
-				return fmt.Sprintf("%d hours ago", hours)
-			case duration < 7*24*time.Hour:
-				days := int(duration.Hours() / 24)
-				if days == 1 {
-					return "1 day ago"
-				}
-				return fmt.Sprintf("%d days ago", days)
-			default:
-				return t.Format("Jan 2, 2006")
-			}
-		},
+		"formatTime":    func(t time.Time) string { return t.Format("Jan 2, 2006 3:04 PM") },
+		"formatTimeAgo": humanize.Time,
 	}
 
 	tmpl, err := template.New("index.html").Funcs(funcMap).Parse(templateContent)
@@ -132,30 +102,6 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-}
-
-// handleIndex serves the main page
-// secureRandomInt returns a cryptographically secure random int in [0, n)
-func secureRandomInt(n int) int {
-	if n <= 0 {
-		return 0
-	}
-
-	// Combine crypto/rand with timestamp for maximum randomness
-	var cryptoSeed int64
-	err := binary.Read(rand.Reader, binary.BigEndian, &cryptoSeed)
-
-	// Mix crypto seed with current time nanoseconds
-	seed := cryptoSeed ^ time.Now().UnixNano()
-
-	if err != nil {
-		// Fallback: just use timestamp with some mixing
-		seed = time.Now().UnixNano() ^ int64(len(fmt.Sprintf("%d", time.Now().UnixNano())))
-	}
-
-	// Create a new random generator with combined seed
-	r := mrand.New(mrand.NewSource(seed))
-	return r.Intn(n)
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -303,44 +249,19 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return sources[i].NewestItemAge.After(sources[j].NewestItemAge)
 	})
 
-	// Select random knowledge bits - randomly choose between Java, jQuery, or JSP
-	javaBits := knowledge.GetKnowledgeBits()
-	jqueryBits := knowledge.GetJQueryBits()
-	jspBits := knowledge.GetJSPBits()
-
-	// Get one random bit from each type
-	javaBit := javaBits[secureRandomInt(len(javaBits))]
-	jqueryBit := jqueryBits[secureRandomInt(len(jqueryBits))]
-	jspBit := jspBits[secureRandomInt(len(jspBits))]
-
-	// Randomly select which tab should be active by default
-	activeTab := ""
-	typeChoice := secureRandomInt(3)
-	switch typeChoice {
-	case 0:
-		activeTab = "java"
-	case 1:
-		activeTab = "jquery"
-	case 2:
-		activeTab = "jsp"
-	}
+	// Get a random knowledge bit
+	knowledgeBit := knowledge.GetRandomBit()
 
 	data := struct {
-		Sources   []Source
-		UpdatedAt time.Time
-		Title     string
-		JavaBit   knowledge.KnowledgeBit
-		JQueryBit knowledge.KnowledgeBit
-		JSPBit    knowledge.KnowledgeBit
-		ActiveTab string
+		Sources      []Source
+		UpdatedAt    time.Time
+		Title        string
+		KnowledgeBit knowledge.KnowledgeBit
 	}{
-		Sources:   sources,
-		UpdatedAt: feed.UpdatedAt,
-		Title:     "Feedlet",
-		JavaBit:   javaBit,
-		JQueryBit: jqueryBit,
-		JSPBit:    jspBit,
-		ActiveTab: activeTab,
+		Sources:      sources,
+		UpdatedAt:    feed.UpdatedAt,
+		Title:        "Feedlet",
+		KnowledgeBit: knowledgeBit,
 	}
 
 	if err := s.tmpl.Execute(w, data); err != nil {

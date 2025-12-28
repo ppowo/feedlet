@@ -1,27 +1,31 @@
 package knowledge
 
-// KnowledgeBit represents a concept/tidbit to remember
+import (
+	"crypto/rand"
+	"math/big"
+)
+
+// KnowledgeBit represents an interview question with its search term
 type KnowledgeBit struct {
-	Title        string `json:"title"`
-	Description  string `json:"description"`
-	Code         string `json:"code,omitempty"`       // For Java tidbits (unchanged)
-	HTMLCode     string `json:"htmlCode,omitempty"`   // HTML code examples for jQuery tidbits
-	JQueryCode   string `json:"jqueryCode,omitempty"` // jQuery code for tidbits
-	ModernCode   string `json:"modernCode,omitempty"` // Modern JS content
-	Category     string `json:"category"`
+	Question   string // Interview-style question displayed to user
+	SearchTerm string // Clean concept for DuckDuckGo search
 }
 
-// GetKnowledgeBits returns all embedded knowledge tidbits (Java)
-func GetKnowledgeBits() []KnowledgeBit {
-	return getJavaBits()
+// GetAllBits returns all knowledge bits from all languages combined
+func GetAllBits() []KnowledgeBit {
+	var all []KnowledgeBit
+	all = append(all, getJavaBits()...)
+	all = append(all, getJQueryBits()...)
+	all = append(all, getJSPBits()...)
+	return all
 }
 
-// GetJQueryBits returns jQuery knowledge tidbits
-func GetJQueryBits() []KnowledgeBit {
-	return getJQueryBits()
-}
-
-// GetJSPBits returns JSP knowledge tidbits
-func GetJSPBits() []KnowledgeBit {
-	return getJSPBits()
+// GetRandomBit returns a single random knowledge bit
+func GetRandomBit() KnowledgeBit {
+	bits := GetAllBits()
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(bits))))
+	if err != nil {
+		return bits[0]
+	}
+	return bits[n.Int64()]
 }

@@ -54,11 +54,11 @@ func GetConfig() *models.Config {
 			{
 				Name:           "r/thelastpsychiatrist",
 				Type:           "reddit",
-				URL:            "https://old.reddit.com/r/thelastpsychiatrist/top/.rss?sort=top&t=all",
+				URL:            "https://old.reddit.com/r/thelastpsychiatrist/new/.rss",
 				Interval:       3600,
 				IntervalJitter: 300,
-				IgnoreDays:     true,
 				Limit:          6,
+				IgnoreDays:     true,
 			},
 			{
 				Name:           "Lobsters",

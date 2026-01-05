@@ -120,13 +120,14 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	// Convert to slice of sources for template
 	// Include ALL enabled sources, even if they have no items after filtering
 	type Source struct {
-		Name          string
-		Items         []any
-		IgnoreDays    bool
-		NSFW          bool
-		Days          int
-		NewestItemAge time.Time // For sorting by freshness
-		Error         string    // Error message if fetch failed
+		Name            string
+		Items           []any
+		IgnoreDays      bool
+		NSFW            bool
+		IsChronological bool
+		Days            int
+		NewestItemAge   time.Time // For sorting by freshness
+		Error           string    // Error message if fetch failed
 	}
 
 	// Get all enabled source names from config
@@ -140,6 +141,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		itemsInterface := make([]any, len(items))
 		ignoreDays := false
 		nsfw := false
+		isChronological := false
 		var newestTime time.Time
 		for i, item := range items {
 			itemsInterface[i] = item
@@ -148,6 +150,9 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			}
 			if item.NSFW {
 				nsfw = true
+			}
+			if item.IsChronological {
+				isChronological = true
 			}
 			// Track the newest item's publish time
 			if item.Published.After(newestTime) {
@@ -166,13 +171,14 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		}
 
 		sources = append(sources, Source{
-			Name:          name,
-			Items:         itemsInterface,
-			IgnoreDays:    ignoreDays,
-			NSFW:          nsfw,
-			Days:          days,
-			NewestItemAge: newestTime,
-			Error:         errorMsg,
+			Name:            name,
+			Items:           itemsInterface,
+			IgnoreDays:      ignoreDays,
+			NSFW:            nsfw,
+			IsChronological: isChronological,
+			Days:            days,
+			NewestItemAge:   newestTime,
+			Error:           errorMsg,
 		})
 		delete(allSourceNames, name)
 	}
@@ -182,6 +188,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	allSources := make(map[string]bool)
 	sourceIgnoreDays := make(map[string]bool)
 	sourceNSFW := make(map[string]bool)
+	sourceIsChronological := make(map[string]bool)
 	for _, item := range feed.Items {
 		allSources[item.SourceName] = true
 		if item.IgnoreDays {
@@ -189,6 +196,9 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		}
 		if item.NSFW {
 			sourceNSFW[item.SourceName] = true
+		}
+		if item.IsChronological {
+			sourceIsChronological[item.SourceName] = true
 		}
 	}
 
@@ -206,13 +216,14 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			}
 
 			sources = append(sources, Source{
-				Name:          sourceName,
-				Items:         []any{},
-				IgnoreDays:    sourceIgnoreDays[sourceName],
-				NSFW:          sourceNSFW[sourceName],
-				Days:          days,
-				NewestItemAge: time.Time{}, // Zero time for sources with no items
-				Error:         errorMsg,
+				Name:            sourceName,
+				Items:           []any{},
+				IgnoreDays:      sourceIgnoreDays[sourceName],
+				NSFW:            sourceNSFW[sourceName],
+				IsChronological: sourceIsChronological[sourceName],
+				Days:            days,
+				NewestItemAge:   time.Time{}, // Zero time for sources with no items
+				Error:           errorMsg,
 			})
 		}
 	}
@@ -232,13 +243,14 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 				days = 2
 			}
 			sources = append(sources, Source{
-				Name:          errorSourceName,
-				Items:         []any{},
-				IgnoreDays:    false,
-				NSFW:          false,
-				Days:          days,
-				NewestItemAge: time.Time{},
-				Error:         feed.Errors[errorSourceName],
+				Name:            errorSourceName,
+				Items:           []any{},
+				IgnoreDays:      false,
+				NSFW:            false,
+				IsChronological: false,
+				Days:            days,
+				NewestItemAge:   time.Time{},
+				Error:           feed.Errors[errorSourceName],
 			})
 		}
 	}

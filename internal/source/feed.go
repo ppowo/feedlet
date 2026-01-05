@@ -11,23 +11,25 @@ import (
 // FeedSource implements the Source interface for RSS/Atom feeds
 // Consolidates rss, reddit, hnrss, and lobsters sources
 type FeedSource struct {
-	name       string
-	url        string
-	sourceType string
-	useGUID    bool // Use GUID instead of Link (for HN, Lobsters)
-	ignoreDays bool // Set IgnoreDays on items (for Reddit timeless sources)
-	parser     *gofeed.Parser
+	name           string
+	url            string
+	sourceType     string
+	useGUID        bool // Use GUID instead of Link (for HN, Lobsters)
+	ignoreDays     bool // Set IgnoreDays on items (for Reddit timeless sources)
+	isChronological bool // Set IsChronological on items (for "new" sorted feeds)
+	parser         *gofeed.Parser
 }
 
 // NewFeedSource creates a new feed source
-func NewFeedSource(name, url, sourceType string, useGUID, ignoreDays bool) *FeedSource {
+func NewFeedSource(name, url, sourceType string, useGUID, ignoreDays, isChronological bool) *FeedSource {
 	return &FeedSource{
-		name:       name,
-		url:        url,
-		sourceType: sourceType,
-		useGUID:    useGUID,
-		ignoreDays: ignoreDays,
-		parser:     gofeed.NewParser(),
+		name:           name,
+		url:            url,
+		sourceType:     sourceType,
+		useGUID:        useGUID,
+		ignoreDays:     ignoreDays,
+		isChronological: isChronological,
+		parser:         gofeed.NewParser(),
 	}
 }
 
@@ -64,15 +66,16 @@ func (f *FeedSource) Fetch(ctx context.Context) ([]models.Item, error) {
 		}
 
 		items = append(items, models.Item{
-			Title:       item.Title,
-			Link:        link,
-			Description: item.Description,
-			Content:     content,
-			Author:      author,
-			Published:   *published,
-			SourceName:  f.name,
-			SourceType:  f.sourceType,
-			IgnoreDays:  f.ignoreDays,
+			Title:           item.Title,
+			Link:            link,
+			Description:     item.Description,
+			Content:         content,
+			Author:          author,
+			Published:       *published,
+			SourceName:      f.name,
+			SourceType:      f.sourceType,
+			IgnoreDays:      f.ignoreDays,
+			IsChronological: f.isChronological,
 		})
 	}
 

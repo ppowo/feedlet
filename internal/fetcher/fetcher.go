@@ -78,13 +78,13 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 		var src source.Source
 		switch cfg.Type {
 		case "rss":
-			src = source.NewFeedSource(cfg.Name, cfg.URL, "rss", false, false)
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "rss", false, false, false)
 		case "hnrss":
-			src = source.NewFeedSource(cfg.Name, cfg.URL, "hnrss", true, false)
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "hnrss", true, false, false)
 		case "reddit":
-			src = source.NewFeedSource(cfg.Name, cfg.URL, "reddit", false, cfg.IgnoreDays)
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "reddit", false, cfg.IgnoreDays, cfg.IsChronological)
 		case "lobsters":
-			src = source.NewFeedSource(cfg.Name, cfg.URL, "lobsters", true, false)
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "lobsters", true, false, false)
 		case "4plebs":
 			src = source.NewFourPlebsSource(cfg.Name, cfg.URL, cfg.Limit, cfg.NSFW)
 		case "desuarchive":

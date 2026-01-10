@@ -3,6 +3,7 @@ package fetcher
 import (
 	"context"
 	"fmt"
+	"golang.org/x/time/rate"
 	"log"
 	"maps"
 	"math/rand"
@@ -13,7 +14,6 @@ import (
 	"github.com/ppowo/feedlet/internal/source"
 )
 
-// Fetcher manages fetching from multiple sources with semi-random intervals
 type Fetcher struct {
 	sources        []sourceWithConfig
 	feed           *models.Feed
@@ -21,8 +21,8 @@ type Fetcher struct {
 	subscribers    map[chan struct{}]struct{}
 	subMu          sync.Mutex
 	maxSubscribers int
-	lastFetch      map[string]time.Time
-	fetchMu        sync.Mutex
+	limiters       map[string]*rate.Limiter
+	limiterMu      sync.Mutex
 	minInterval    time.Duration
 	wg             sync.WaitGroup
 	closed         bool
@@ -34,7 +34,7 @@ type Fetcher struct {
 
 // Config holds configuration for the fetcher
 type Config struct {
-	MaxSubscribers int
+	MaxSubscribers   int
 	MinFetchInterval time.Duration
 }
 
@@ -47,12 +47,11 @@ type sourceWithConfig struct {
 // New creates a new Fetcher with default config
 func New(sources []sourceWithConfig) *Fetcher {
 	return NewWithConfig(sources, Config{
-		MaxSubscribers:     1000,
-		MinFetchInterval:   0,
+		MaxSubscribers:   1000,
+		MinFetchInterval: 0,
 	})
 }
 
-// NewWithConfig creates a new Fetcher with custom configuration
 func NewWithConfig(sources []sourceWithConfig, cfg Config) *Fetcher {
 	return &Fetcher{
 		sources: sources,
@@ -64,7 +63,7 @@ func NewWithConfig(sources []sourceWithConfig, cfg Config) *Fetcher {
 		subscribers:    make(map[chan struct{}]struct{}),
 		subOnce:        make(map[chan struct{}]*sync.Once),
 		maxSubscribers: cfg.MaxSubscribers,
-		lastFetch:      make(map[string]time.Time),
+		limiters:       make(map[string]*rate.Limiter),
 		minInterval:    cfg.MinFetchInterval,
 		rng:            rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
@@ -113,7 +112,7 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 		subscribers:    make(map[chan struct{}]struct{}),
 		subOnce:        make(map[chan struct{}]*sync.Once),
 		maxSubscribers: maxSubscribers,
-		lastFetch:      make(map[string]time.Time),
+		limiters:       make(map[string]*rate.Limiter),
 		minInterval:    time.Duration(minFetchInterval) * time.Second,
 		rng:            rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
@@ -170,31 +169,17 @@ func (f *Fetcher) nextInterval(sc sourceWithConfig) time.Duration {
 	return sc.interval + jitter
 }
 
-// fetchSource fetches from a single source and updates the feed
 func (f *Fetcher) fetchSource(ctx context.Context, src source.Source) {
 	log.Printf("Fetching from %s (%s)", src.Name(), src.Type())
 
-	// Check rate limiting and update last fetch time atomically under the same lock
-	f.fetchMu.Lock()
-	allow := true
 	if f.minInterval > 0 {
-		lastFetch, exists := f.lastFetch[src.Name()]
-		if exists && time.Since(lastFetch) < f.minInterval {
-			waitTime := f.minInterval - time.Since(lastFetch)
-			log.Printf("Rate limiting %s: need to wait %v", src.Name(), waitTime)
-			allow = false
+		limiter := f.getLimiter(src)
+		if err := limiter.Wait(ctx); err != nil {
+			log.Printf("Rate limiting %s: need to wait", src.Name())
+			return
 		}
 	}
-	if allow {
-		f.lastFetch[src.Name()] = time.Now()
-	}
-	f.fetchMu.Unlock()
 
-	if !allow {
-		return
-	}
-
-	// Create timeout context for the fetch operation
 	fetchCtx, fetchCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer fetchCancel()
 
@@ -205,17 +190,14 @@ func (f *Fetcher) fetchSource(ctx context.Context, src source.Source) {
 
 	if err != nil {
 		log.Printf("Error fetching from %s: %v", src.Name(), err)
-		// Store error so frontend can display it
 		f.feed.Errors[src.Name()] = err.Error()
 		f.feed.UpdatedAt = time.Now()
 		f.notifySubscribers()
 		return
 	}
 
-	// Clear any previous error for this source
 	delete(f.feed.Errors, src.Name())
 
-	// Remove old items from this source
 	newItems := make([]models.Item, 0, len(f.feed.Items))
 	for _, item := range f.feed.Items {
 		if item.SourceName != src.Name() {
@@ -223,25 +205,34 @@ func (f *Fetcher) fetchSource(ctx context.Context, src source.Source) {
 		}
 	}
 
-	// Add new items
 	newItems = append(newItems, items...)
 	f.feed.Items = newItems
 	f.feed.UpdatedAt = time.Now()
 
 	log.Printf("Fetched %d items from %s", len(items), src.Name())
 
-	// Notify all subscribers
 	f.notifySubscribers()
 }
 
-// Shutdown stops all fetch goroutines and waits for them to complete
+func (f *Fetcher) getLimiter(src source.Source) *rate.Limiter {
+	f.limiterMu.Lock()
+	defer f.limiterMu.Unlock()
+
+	if limiter, exists := f.limiters[src.Name()]; exists {
+		return limiter
+	}
+
+	r := rate.Every(f.minInterval)
+	limiter := rate.NewLimiter(r, 2)
+	f.limiters[src.Name()] = limiter
+	return limiter
+}
+
 func (f *Fetcher) Shutdown() error {
-	// Mark as closed to prevent new subscriptions
 	f.closedMu.Lock()
 	f.closed = true
 	f.closedMu.Unlock()
 
-	// Wait for all fetch goroutines to complete
 	f.wg.Wait()
 	return nil
 }

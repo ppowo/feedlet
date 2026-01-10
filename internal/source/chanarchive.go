@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/ppowo/feedlet/internal/models"
+	"github.com/ppowo/feedlet/internal/source/httpclient"
 )
 
 // ChanArchiveSource implements the Source interface for 4chan archive APIs
@@ -80,12 +81,11 @@ func NewDesuArchiveSource(name, board string, limit int, nsfw bool) *ChanArchive
 	}
 }
 
-// Fetch retrieves threads from the archive
 func (c *ChanArchiveSource) Fetch(ctx context.Context) ([]models.Item, error) {
 	searchURL := fmt.Sprintf("%s/_/api/chan/search/?subject=%s&boards=%s&type=op&page=1",
 		c.baseURL, c.subject, c.board)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", searchURL, nil)
+	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", searchURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -93,14 +93,13 @@ func (c *ChanArchiveSource) Fetch(ctx context.Context) ([]models.Item, error) {
 	req.Header.Set("User-Agent", "feedlet/1.0 (contact: admin@example.com)")
 	req.Header.Set("Accept", "application/json")
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := httpclient.GetClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch %s: %w", c.archiveType, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 

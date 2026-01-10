@@ -9,7 +9,6 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// Setup configures logging to write to both stdout and a rotating log file
 func Setup() error {
 	logDir, err := getLogDir()
 	if err != nil {
@@ -24,22 +23,20 @@ func Setup() error {
 
 	logger := &lumberjack.Logger{
 		Filename:   logPath,
-		MaxSize:    10,   // MB
-		MaxBackups: 3,    // keep 3 old files
-		MaxAge:     3,    // days
+		MaxSize:    10,
+		MaxBackups: 3,
+		MaxAge:     3,
 		Compress:   false,
 	}
 
-	// Log to both stdout and file
 	multiWriter := io.MultiWriter(os.Stdout, logger)
 	log.SetOutput(multiWriter)
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.SetFlags(0)
 
 	log.Printf("Logging to %s", logPath)
 	return nil
 }
 
-// getLogDir returns the OS-specific log directory for feedlet
 func getLogDir() (string, error) {
 	switch {
 	case os.Getenv("XDG_STATE_HOME") != "":
@@ -47,10 +44,8 @@ func getLogDir() (string, error) {
 	case os.Getenv("HOME") != "":
 		home := os.Getenv("HOME")
 		if _, err := os.Stat(filepath.Join(home, "Library")); err == nil {
-			// macOS
 			return filepath.Join(home, "Library", "Logs", "feedlet"), nil
 		}
-		// Linux
 		return filepath.Join(home, ".local", "state", "feedlet", "logs"), nil
 	default:
 		return filepath.Join(".", "logs"), nil

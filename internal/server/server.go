@@ -56,13 +56,11 @@ func New(f *fetcher.Fetcher, templateContent string, port int, sourceLimits map[
 	return s, nil
 }
 
-// Start starts the HTTP server
 func (s *Server) Start() error {
-	log.Printf("Starting server on http://localhost:%d", s.port)
+	log.Printf("Starting server")
 	return s.httpServer.ListenAndServe()
 }
 
-// Shutdown gracefully shuts down the HTTP server
 func (s *Server) Shutdown(ctx context.Context) error {
 	log.Println("Shutting down HTTP server...")
 	return s.httpServer.Shutdown(ctx)
@@ -75,7 +73,6 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	// Subscribe to feed updates
 	updateCh, err := s.fetcher.Subscribe()
 	if err != nil {
 		log.Printf("Failed to subscribe: %v", err)

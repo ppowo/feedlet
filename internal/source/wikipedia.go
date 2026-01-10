@@ -3,7 +3,6 @@ package source
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"regexp"
 	"sort"
 	"strconv"
@@ -12,16 +11,18 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/araddon/dateparse"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/ppowo/feedlet/internal/models"
+	"github.com/ppowo/feedlet/internal/source/httpclient"
 )
 
 // Compiled regexes for performance (compile once at package load time)
 var (
-	dateRegex       = regexp.MustCompile(`(?i)\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sep(tember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b|20\d{2}`)
-	promotionRegex  = regexp.MustCompile(`(?i)\b(WWE|AEW|NJPW|ROH|CMLL|IMPACT|TNA|NEW JAPAN|ALL ELITE|RING OF HONOR|CONSEJO MUNDIAL DE LUCHA LIBRE|AAA|MLW|NWA|GCW|PWG)\b`)
-	ratingRegex     = regexp.MustCompile(`^(\d\.?\d{0,2}|\d+[¼½¾])$`)
-	numericRegex    = regexp.MustCompile(`\d+\.?\d*`)
-	citationRegex   = regexp.MustCompile(`\[\d+\]`)
+	dateRegex      = regexp.MustCompile(`(?i)\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sep(tember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b|20\d{2}`)
+	promotionRegex = regexp.MustCompile(`(?i)\b(WWE|AEW|NJPW|ROH|CMLL|IMPACT|TNA|NEW JAPAN|ALL ELITE|RING OF HONOR|CONSEJO MUNDIAL DE LUCHA LIBRE|AAA|MLW|NWA|GCW|PWG)\b`)
+	ratingRegex    = regexp.MustCompile(`^(\d\.?\d{0,2}|\d+[¼½¾])$`)
+	numericRegex   = regexp.MustCompile(`\d+\.?\d*`)
+	citationRegex  = regexp.MustCompile(`\[\d+\]`)
 )
 
 // WikipediaSource implements the Source interface for Wikipedia pages
@@ -44,24 +45,21 @@ func NewWikipediaSource(name, url string, limit int) *WikipediaSource {
 	}
 }
 
-// Fetch retrieves match data from Wikipedia
 func (w *WikipediaSource) Fetch(ctx context.Context) ([]models.Item, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", w.url, nil)
+	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", w.url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set User-Agent to avoid being blocked
 	req.Header.Set("User-Agent", "Feedlet/1.0 (RSS aggregator)")
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := httpclient.GetClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch wikipedia: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
@@ -72,8 +70,8 @@ func (w *WikipediaSource) Fetch(ctx context.Context) ([]models.Item, error) {
 
 	// Create a slice to hold all items with their row numbers for sorting
 	type itemWithRowNum struct {
-		item    models.Item
-		rowNum  int
+		item   models.Item
+		rowNum int
 	}
 
 	allItems := make([]itemWithRowNum, 0)
@@ -158,10 +156,18 @@ func (w *WikipediaSource) Fetch(ctx context.Context) ([]models.Item, error) {
 			}
 
 			// Fill in missing fields from merged cells
-			if dateText == "" { dateText = currentDate }
-			if promotionText == "" { promotionText = currentPromotion }
-			if eventText == "" { eventText = currentEvent }
-			if ratingText == "" { ratingText = currentRating }
+			if dateText == "" {
+				dateText = currentDate
+			}
+			if promotionText == "" {
+				promotionText = currentPromotion
+			}
+			if eventText == "" {
+				eventText = currentEvent
+			}
+			if ratingText == "" {
+				ratingText = currentRating
+			}
 
 			// Parse rating to filter for entries above minimum
 			ratingValue := parseRating(ratingText)
@@ -170,7 +176,6 @@ func (w *WikipediaSource) Fetch(ctx context.Context) ([]models.Item, error) {
 			if matchText == "" || matchText == firstCellText || ratingValue < w.minRating {
 				return
 			}
-
 
 			// Parse date - handle various formats
 			published := parseWikipediaDate(dateText)

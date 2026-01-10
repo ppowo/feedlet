@@ -24,9 +24,8 @@ var (
 )
 
 func main() {
-	// Setup logging
 	if err := logging.Setup(); err != nil {
-		log.Fatalf("Failed to setup logging: %v", err)
+		log.Fatal(err)
 	}
 
 	// Load embedded configuration
@@ -65,7 +64,7 @@ func main() {
 
 	srv, err := server.New(f, web.IndexTemplate, port, sourceLimits, sourceDays)
 	if err != nil {
-		log.Fatalf("Failed to create server: %v", err)
+		log.Fatal(err)
 	}
 
 	// Handle graceful shutdown
@@ -78,7 +77,6 @@ func main() {
 			log.Println("Shutting down...")
 			cancel()
 
-			// Shutdown HTTP server
 			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer shutdownCancel()
 
@@ -86,7 +84,6 @@ func main() {
 				log.Printf("Server shutdown error: %v", err)
 			}
 
-			// Wait for fetcher goroutines to complete with timeout
 			done := make(chan struct{})
 			go func() {
 				defer close(done)
@@ -103,6 +100,6 @@ func main() {
 	}()
 
 	if err := srv.Start(); err != nil {
-		log.Fatalf("Server error: %v", err)
+		log.Fatal(err)
 	}
 }

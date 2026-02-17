@@ -105,12 +105,12 @@ func GetConfig() *models.Config {
 				Days:           5,
 			},
 			{
-				Name:           "r/techcompenso",
+				Name:           "r/SquaredCircle",
 				Type:           "reddit",
-				URL:            "https://old.reddit.com/r/techcompenso/top/.rss?t=year",
+				URL:            "https://old.reddit.com/r/SquaredCircle/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           28,
+				Days:           6,
 			},
 		},
 	}

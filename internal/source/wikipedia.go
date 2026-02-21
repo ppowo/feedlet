@@ -41,7 +41,7 @@ func NewWikipediaSource(name, url string, limit int) *WikipediaSource {
 		url:        url,
 		limit:      limit,
 		ignoreDays: true, // Wikipedia entries should ignore day filtering by default
-		minRating:  5.0,  // Minimum rating to include (>= 5.0 gets all 5+ star matches)
+		minRating:  5.5,  // Minimum rating to include (>= 5.5)
 	}
 }
 

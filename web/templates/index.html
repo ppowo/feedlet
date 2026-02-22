@@ -10,64 +10,67 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="flex flex-col h-screen overflow-hidden bg-slate-100 text-slate-800">
+<body class="flex h-screen flex-col overflow-hidden bg-slate-100 text-slate-900 antialiased">
   <!-- Knowledge Question Line -->
   <a href="https://eu.startpage.com/do/search?query={{ .KnowledgeBit.SearchTerm }}&prfe=db7782ffde7fc79026fcb9735ac3535a747ab9ae506bd316fbf78e424aff11e676a57e10ca121690e7b0d2ec79120910731385a4b54d5594392332a723762ed80f8309e90a25723e0c7ec13059fe9f" target="_blank" rel="noopener noreferrer"
-    class="block text-center py-2 text-sm text-blue-600 hover:text-blue-800 hover:underline bg-white border-b border-slate-300 flex-shrink-0">
+    class="block flex-shrink-0 border-b border-slate-300 bg-slate-50 py-1.5 text-center text-[11px] text-sky-800 hover:text-sky-900 hover:underline">
     {{ .KnowledgeBit.Question }}
   </a>
 
   <!-- Main Content Area -->
   <div
-    class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden grid gap-[2px] grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-max lg:auto-rows-fr p-[2px]"
+    class="grid flex-1 min-h-0 auto-rows-max grid-cols-1 gap-1 overflow-x-hidden overflow-y-auto p-1 sm:grid-cols-2 lg:auto-rows-fr lg:grid-cols-3 xl:grid-cols-4"
     data-count="{{ len .Sources }}">
     {{ if .Sources }}
     {{ range .Sources }}
-    <div class="bg-white border border-slate-300 flex flex-col lg:min-h-0" {{ if .NSFW
-      }}style="background-color: #fff5f5; border-color: #cf222e;" {{ else if .IsChronological
-      }}style="background-color: #e6ffec; border-color: #1a7f37;" {{ else if .IgnoreDays
-      }}style="background-color: #fff8e6; border-color: #e3a008;" {{ else }}style="background-color: #fff;" {{ end }}>
-      <div
-        class="px-3 py-2 border-b flex-shrink-0 flex justify-between items-center text-[12px] font-bold uppercase tracking-wider"
-        {{ if .NSFW }}style="background-color: #fff5f5; border-bottom-color: #cf222e; color: #82071e;" {{ else if
-        .IsChronological }}style="background-color: #e6ffec; border-bottom-color: #1a7f37; color: #166534;" {{ else if
-        .IgnoreDays }}style="background-color: #fff8e6; border-bottom-color: #e3a008; color: #92400e;" {{ else
-        }}style="background-color: #f6f8fa; border-bottom-color: #d0d7de;" {{ end }}>
-        <span>{{ .Name }}</span>
-        <span class="text-[10px] font-normal opacity-70">{{ if .IgnoreDays }}∞{{ else }}{{ .Days }}d{{ end }}</span>
+    <div class="flex flex-col rounded-sm border border-slate-300 border-l-4 bg-slate-50 shadow-sm lg:min-h-0 {{ if .NSFW }}border-l-rose-500{{ else if .IsChronological }}border-l-emerald-500{{ else if .IgnoreDays }}border-l-amber-500{{ else }}border-l-slate-400{{ end }}">
+      <div class="flex flex-shrink-0 items-center justify-between gap-1.5 border-b border-slate-300 bg-slate-100 px-2 py-1.5">
+        <div class="flex min-w-0 items-center gap-1.5">
+          <span class="truncate text-[11px] font-semibold text-slate-800">{{ .Name }}</span>
+          {{ if .NSFW }}
+          <span title="NSFW" class="inline-block h-2 w-2 rounded-full bg-rose-500"></span>
+          {{ else if .IsChronological }}
+          <span title="Chronological" class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+          {{ else if .IgnoreDays }}
+          <span title="Timeless" class="inline-block h-2 w-2 rounded-full bg-amber-500"></span>
+          {{ end }}
+        </div>
+        <span class="shrink-0 text-[11px] text-slate-600">{{ if .IgnoreDays }}∞{{ else }}{{ .Days }}d{{ end }}</span>
       </div>
-      <div class="flex-1 min-h-0 lg:overflow-y-auto p-2">
+
+      <div class="flex-1 min-h-0 p-1.5 lg:overflow-y-auto">
         {{ if .Error }}
-        <div class="rounded p-4 m-4 flex gap-3" style="background-color: #fff1f0; border: 1px solid #ff8182;">
-          <div class="text-[24px] flex-shrink-0">⚠️</div>
-          <div class="text-[12px] leading-relaxed break-words" style="color: #d1242f;">{{ .Error }}</div>
+        <div class="m-1 flex gap-2 rounded-sm border border-rose-300 bg-rose-100/70 p-2">
+          <div class="flex-shrink-0 text-[16px]">⚠️</div>
+          <div class="break-words text-[11px] leading-snug text-rose-800">{{ .Error }}</div>
         </div>
         {{ else if .Items }}
         {{ range .Items }}
-        <div class="border-l-2 p-2 mb-2 transition-colors hover:border-blue-600 hover:bg-slate-100"
-          style="border-left-color: #d0d7de;">
-          <div class="text-[13px] mb-1">
-            <a href="{{ .Link }}" target="_blank" rel="noopener noreferrer" style="color: #0550ae;">{{ .Title }}</a>
+        <div class="mb-1 rounded-sm border border-transparent p-1.5 transition-colors hover:border-sky-400 hover:bg-slate-100">
+          <div class="text-sm leading-tight">
+            <a href="{{ .Link }}" target="_blank" rel="noopener noreferrer"
+              class="block truncate font-medium text-sky-800 hover:text-sky-900 hover:underline visited:text-violet-800">{{ .Title }}</a>
           </div>
           {{ if not .HideDate }}
-          <div class="text-[10px]" style="color: #57606a;">{{ formatTimeAgo .Published }}</div>
+          <div class="mt-0.5 text-[11px] text-slate-600">{{ formatTimeAgo .Published }}</div>
           {{ end }}
         </div>
         {{ end }}
         {{ else }}
-        <div class="text-center py-10" style="color: #57606a;">No items</div>
+        <div class="py-6 text-center text-[11px] text-slate-600">No items</div>
         {{ end }}
       </div>
     </div>
     {{ end }}
     {{ else }}
-    <div class="tile bg-white border border-slate-300">
-      <div class="tile-content p-2 flex-1">
-        <div class="empty text-center text-slate-500 py-10">No sources configured</div>
+    <div class="rounded-sm border border-slate-300 bg-slate-50 shadow-sm">
+      <div class="flex-1 p-2">
+        <div class="py-8 text-center text-sm text-slate-500">No sources configured</div>
       </div>
     </div>
     {{ end }}
   </div>
+
   <script>
     const eventSource = new EventSource('/events');
 

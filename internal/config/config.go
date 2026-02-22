@@ -17,7 +17,7 @@ func GetConfig() *models.Config {
 				URL:            "https://old.reddit.com/r/italiacareeradvice/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           7,
+				Days:           6,
 			},
 			{
 				Name:           "r/ItaliaPersonalFinance",

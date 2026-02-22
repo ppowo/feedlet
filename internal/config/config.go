@@ -33,7 +33,7 @@ func GetConfig() *models.Config {
 				URL:            "https://old.reddit.com/r/programming/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           7,
+				Days:           6,
 			},
 			{
 				Name:           "Hacker News",
@@ -49,7 +49,7 @@ func GetConfig() *models.Config {
 				URL:            "https://old.reddit.com/r/trackers/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           8,
+				Days:           10,
 			},
 			{
 				Name:           "Lobsters",
@@ -102,15 +102,15 @@ func GetConfig() *models.Config {
 				URL:            "https://old.reddit.com/r/Grimdank/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           5,
+				Days:           6,
 			},
 			{
-				Name:           "r/SquaredCircle",
+				Name:           "r/selfhosted",
 				Type:           "reddit",
-				URL:            "https://old.reddit.com/r/SquaredCircle/top/.rss?t=week",
+				URL:            "https://old.reddit.com/r/selfhosted/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           2,
+				Days:           4,
 			},
 		},
 	}

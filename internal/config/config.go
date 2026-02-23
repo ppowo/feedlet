@@ -41,7 +41,7 @@ func GetConfig() *models.Config {
 				URL:            "https://hnrss.org/newest?points=350",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           1,
+				Days:           2,
 			},
 			{
 				Name:           "r/trackers",
@@ -102,7 +102,7 @@ func GetConfig() *models.Config {
 				URL:            "https://old.reddit.com/r/Grimdank/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           6,
+				Days:           7,
 			},
 			{
 				Name:           "r/selfhosted",

@@ -90,7 +90,7 @@ func (c *ChanArchiveSource) Fetch(ctx context.Context) ([]models.Item, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("User-Agent", "feedlet/1.0 (contact: admin@example.com)")
+	req.Header.Set("User-Agent", httpclient.RandomUserAgent())
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := httpclient.GetClient().Do(req)

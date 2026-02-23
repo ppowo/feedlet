@@ -3,41 +3,75 @@ package source
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 
 	"github.com/mmcdole/gofeed"
 	"github.com/ppowo/feedlet/internal/models"
+	"github.com/ppowo/feedlet/internal/source/httpclient"
 )
 
 // FeedSource implements the Source interface for RSS/Atom feeds
 // Consolidates rss, reddit, hnrss, and lobsters sources
 type FeedSource struct {
-	name           string
-	url            string
-	sourceType     string
-	useGUID        bool // Use GUID instead of Link (for HN, Lobsters)
-	ignoreDays     bool // Set IgnoreDays on items (for Reddit timeless sources)
+	name            string
+	url             string
+	sourceType      string
+	useGUID         bool // Use GUID instead of Link (for HN, Lobsters)
+	ignoreDays      bool // Set IgnoreDays on items (for Reddit timeless sources)
 	isChronological bool // Set IsChronological on items (for "new" sorted feeds)
-	parser         *gofeed.Parser
+	parser          *gofeed.Parser
 }
 
 // NewFeedSource creates a new feed source
 func NewFeedSource(name, url, sourceType string, useGUID, ignoreDays, isChronological bool) *FeedSource {
 	return &FeedSource{
-		name:           name,
-		url:            url,
-		sourceType:     sourceType,
-		useGUID:        useGUID,
-		ignoreDays:     ignoreDays,
+		name:            name,
+		url:             url,
+		sourceType:      sourceType,
+		useGUID:         useGUID,
+		ignoreDays:      ignoreDays,
 		isChronological: isChronological,
-		parser:         gofeed.NewParser(),
+		parser:          gofeed.NewParser(),
 	}
+}
+
+// fetchFeed fetches the feed URL with a proper User-Agent and returns the parsed feed.
+func (f *FeedSource) fetchFeed(ctx context.Context) (*gofeed.Feed, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, f.url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request for %s: %w", f.name, err)
+	}
+	req.Header.Set("User-Agent", httpclient.RandomUserAgent())
+
+	client := httpclient.GetClient()
+	resp, err := client.StandardClient().Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch feed %s: %w", f.name, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch feed %s: http %d %s", f.name, resp.StatusCode, resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read feed %s: %w", f.name, err)
+	}
+
+	feed, err := f.parser.ParseString(string(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse feed %s: %w", f.name, err)
+	}
+	return feed, nil
 }
 
 // Fetch retrieves items from the feed
 func (f *FeedSource) Fetch(ctx context.Context) ([]models.Item, error) {
-	feed, err := f.parser.ParseURLWithContext(f.url, ctx)
+	feed, err := f.fetchFeed(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse feed %s: %w", f.name, err)
+		return nil, err
 	}
 
 	items := make([]models.Item, 0, len(feed.Items))
@@ -47,7 +81,7 @@ func (f *FeedSource) Fetch(ctx context.Context) ([]models.Item, error) {
 			published = item.UpdatedParsed
 		}
 		if published == nil {
-			continue // Skip items without dates
+			continue
 		}
 
 		var author string

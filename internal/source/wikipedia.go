@@ -51,7 +51,7 @@ func (w *WikipediaSource) Fetch(ctx context.Context) ([]models.Item, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("User-Agent", "Feedlet/1.0 (RSS aggregator)")
+	req.Header.Set("User-Agent", httpclient.RandomUserAgent())
 
 	resp, err := httpclient.GetClient().Do(req)
 	if err != nil {

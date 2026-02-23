@@ -57,7 +57,7 @@ func GetConfig() *models.Config {
 				URL:            "https://lobste.rs/top/1w.rss",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           2,
+				Days:           3,
 			},
 			{
 				Name:           "r/40kLore",

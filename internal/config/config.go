@@ -7,12 +7,13 @@ import (
 // GetConfig returns the embedded application configuration
 func GetConfig() *models.Config {
 	return &models.Config{
-		Port:             3737,
-		MinFetchInterval: 5, // Default 5 second minimum between fetches per source
-		MaxSubscribers:   1000,
+		Port:               3737,
+		MinFetchInterval:   5, // Default 5 second minimum between fetches per source
+		MaxSubscribers:     1000,
+		DefaultSourceLimit: 4,
 		Sources: []models.SourceConfig{
 			{
-				Name:           "r/italiacareeradvice",
+				Name:           "r/Italia Career Advice",
 				Type:           "reddit",
 				URL:            "https://old.reddit.com/r/italiacareeradvice/top/.rss?t=month",
 				Interval:       1800,
@@ -20,23 +21,23 @@ func GetConfig() *models.Config {
 				Days:           6,
 			},
 			{
-				Name:           "r/ItaliaPersonalFinance",
+				Name:           "r/Italia Personal Finance",
 				Type:           "reddit",
 				URL:            "https://old.reddit.com/r/ItaliaPersonalFinance/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           6,
+				Days:           8,
 			},
 			{
-				Name:           "r/programming",
+				Name:           "r/Programming",
 				Type:           "reddit",
 				URL:            "https://old.reddit.com/r/programming/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           6,
+				Days:           8,
 			},
 			{
-				Name:           "Hacker News",
+				Name:           "HN 350+",
 				Type:           "hnrss",
 				URL:            "https://hnrss.org/newest?points=350",
 				Interval:       1800,
@@ -44,23 +45,23 @@ func GetConfig() *models.Config {
 				Days:           1,
 			},
 			{
-				Name:           "r/trackers",
+				Name:           "r/Trackers",
 				Type:           "reddit",
 				URL:            "https://old.reddit.com/r/trackers/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           10,
+				Days:           8,
 			},
 			{
-				Name:           "Lobsters",
+				Name:           "Lobsters Top (1w)",
 				Type:           "lobsters",
 				URL:            "https://lobste.rs/top/1w.rss",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           3,
+				Days:           2,
 			},
 			{
-				Name:           "r/40kLore",
+				Name:           "r/40k Lore",
 				Type:           "reddit",
 				URL:            "https://old.reddit.com/r/40kLore/top/.rss?t=month",
 				Interval:       1800,
@@ -68,7 +69,7 @@ func GetConfig() *models.Config {
 				Days:           9,
 			},
 			{
-				Name:           "4plebs /film/",
+				Name:           "4plebs /tv/ /film/",
 				Type:           "4plebs",
 				URL:            "tv",
 				Interval:       1800,
@@ -78,7 +79,7 @@ func GetConfig() *models.Config {
 				Limit:          4,
 			},
 			{
-				Name:           "DesuArchive /ptg/",
+				Name:           "DesuArchive /g/ /ptg/",
 				Type:           "desuarchive",
 				URL:            "g",
 				Interval:       1800,
@@ -88,13 +89,13 @@ func GetConfig() *models.Config {
 				Limit:          4,
 			},
 			{
-				Name:           "Meltzer 5★ Matches",
+				Name:           "Meltzer 5.5★+ Matches",
 				Type:           "wikipedia",
 				URL:            "https://en.wikipedia.org/wiki/List_of_professional_wrestling_matches_rated_5_or_more_stars_by_Dave_Meltzer",
 				Interval:       3600,
 				IntervalJitter: 300,
 				IgnoreDays:     true,
-				Limit:          6,
+				Limit:          4,
 			},
 			{
 				Name:           "r/Grimdank",
@@ -102,15 +103,15 @@ func GetConfig() *models.Config {
 				URL:            "https://old.reddit.com/r/Grimdank/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           10,
+				Days:           7,
 			},
 			{
-				Name:           "r/selfhosted",
+				Name:           "r/Selfhosted",
 				Type:           "reddit",
 				URL:            "https://old.reddit.com/r/selfhosted/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           5,
+				Days:           7,
 			},
 		},
 	}

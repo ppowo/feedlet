@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net"
 	"net/http"
 	"sort"
 	"time"
@@ -57,13 +58,71 @@ func New(f *fetcher.Fetcher, templateContent string, port int, sourceLimits map[
 }
 
 func (s *Server) Start() error {
-	log.Printf("Starting server")
-	return s.httpServer.ListenAndServe()
+	log.Printf("Starting Feedlet")
+	log.Printf("Dashboard: http://localhost:%d", s.port)
+
+	for _, url := range localAccessURLs(s.port) {
+		log.Printf("Dashboard (LAN): %s", url)
+	}
+
+	log.Printf("Press Ctrl+C to stop")
+
+	err := s.httpServer.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		return err
+	}
+
+	return nil
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	log.Println("Shutting down HTTP server...")
 	return s.httpServer.Shutdown(ctx)
+}
+
+func localAccessURLs(port int) []string {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+
+	urls := make([]string, 0)
+	seen := make(map[string]bool)
+
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			ip = ip.To4()
+			if ip == nil {
+				continue
+			}
+
+			url := fmt.Sprintf("http://%s:%d", ip.String(), port)
+			if !seen[url] {
+				urls = append(urls, url)
+				seen[url] = true
+			}
+		}
+	}
+
+	sort.Strings(urls)
+	return urls
 }
 
 // handleSSE serves server-sent events for feed updates
@@ -103,16 +162,11 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	feed := s.fetcher.GetFeed()
-	agg := aggregator.Process(feed)
+	filteredAgg := aggregator.Process(feed).FilterBySourceDays(s.sourceDays)
 
-	// Filter by per-source days
-	agg = agg.FilterBySourceDays(s.sourceDays)
-
-	// Apply per-source limits
-	agg = agg.LimitPerSource(s.sourceLimits)
-
-	// Group items by source
-	grouped := agg.GroupBySource()
+	// Keep both the day-filtered totals and the displayed subset.
+	filteredGrouped := filteredAgg.GroupBySource()
+	grouped := filteredAgg.LimitPerSource(s.sourceLimits).GroupBySource()
 
 	// Convert to slice of sources for template
 	// Include ALL enabled sources, even if they have no items after filtering
@@ -123,14 +177,9 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		NSFW            bool
 		IsChronological bool
 		Days            int
+		HiddenCount     int
 		NewestItemAge   time.Time // For sorting by freshness
 		Error           string    // Error message if fetch failed
-	}
-
-	// Get all enabled source names from config
-	allSourceNames := make(map[string]bool)
-	for _, item := range agg.Items {
-		allSourceNames[item.SourceName] = true
 	}
 
 	sources := make([]Source, 0)
@@ -139,6 +188,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		ignoreDays := false
 		nsfw := false
 		isChronological := false
+		hiddenCount := len(filteredGrouped[name]) - len(items)
 		var newestTime time.Time
 		for i, item := range items {
 			itemsInterface[i] = item
@@ -174,10 +224,10 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			NSFW:            nsfw,
 			IsChronological: isChronological,
 			Days:            days,
+			HiddenCount:     hiddenCount,
 			NewestItemAge:   newestTime,
 			Error:           errorMsg,
 		})
-		delete(allSourceNames, name)
 	}
 
 	// Add sources with no items (but are configured and enabled)
@@ -219,6 +269,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 				NSFW:            sourceNSFW[sourceName],
 				IsChronological: sourceIsChronological[sourceName],
 				Days:            days,
+				HiddenCount:     0,
 				NewestItemAge:   time.Time{}, // Zero time for sources with no items
 				Error:           errorMsg,
 			})
@@ -246,6 +297,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 				NSFW:            false,
 				IsChronological: false,
 				Days:            days,
+				HiddenCount:     0,
 				NewestItemAge:   time.Time{},
 				Error:           feed.Errors[errorSourceName],
 			})

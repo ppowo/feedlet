@@ -35,7 +35,12 @@
           <span title="Timeless" class="inline-block h-2 w-2 rounded-full bg-amber-500"></span>
           {{ end }}
         </div>
-        <span class="shrink-0 text-[11px] text-slate-600">{{ if .IgnoreDays }}∞{{ else }}{{ .Days }}d{{ end }}</span>
+        <div class="flex shrink-0 items-center gap-1.5 text-[11px]">
+          {{ if gt .HiddenCount 0 }}
+          <span class="rounded-sm bg-slate-200 px-1 py-0.5 text-[10px] text-slate-500">+{{ .HiddenCount }} hidden</span>
+          {{ end }}
+          <span class="text-slate-600">{{ if .IgnoreDays }}∞{{ else }}{{ .Days }}d{{ end }}</span>
+        </div>
       </div>
 
       <div class="flex-1 min-h-0 p-1.5 lg:overflow-y-auto">
@@ -46,8 +51,8 @@
         </div>
         {{ else if .Items }}
         {{ range .Items }}
-        <div class="mb-1 rounded-sm border border-transparent p-1.5 transition-colors hover:border-sky-400 hover:bg-slate-100">
-          <div class="text-sm leading-tight">
+        <div class="mb-1 rounded-sm border border-transparent p-1.5 transition-colors hover:border-sky-400 hover:bg-slate-100 last:mb-0">
+          <div class="text-sm leading-snug">
             <a href="{{ .Link }}" target="_blank" rel="noopener noreferrer"
               class="block truncate font-medium text-sky-800 hover:text-sky-900 hover:underline visited:text-violet-800">{{ .Title }}</a>
           </div>

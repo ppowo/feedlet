@@ -54,6 +54,8 @@ func main() {
 	for _, srcCfg := range cfg.Sources {
 		if srcCfg.Limit > 0 {
 			sourceLimits[srcCfg.Name] = srcCfg.Limit
+		} else if cfg.DefaultSourceLimit > 0 {
+			sourceLimits[srcCfg.Name] = cfg.DefaultSourceLimit
 		}
 		if srcCfg.Days > 0 {
 			sourceDays[srcCfg.Name] = srcCfg.Days

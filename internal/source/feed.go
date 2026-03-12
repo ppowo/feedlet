@@ -12,7 +12,7 @@ import (
 )
 
 // FeedSource implements the Source interface for RSS/Atom feeds
-// Consolidates rss, reddit, hnrss, and lobsters sources
+// Consolidates rss, reddit, and lobsters sources
 type FeedSource struct {
 	name            string
 	url             string

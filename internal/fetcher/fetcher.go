@@ -78,8 +78,8 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 		switch cfg.Type {
 		case "rss":
 			src = source.NewFeedSource(cfg.Name, cfg.URL, "rss", false, false, false)
-		case "hnrss":
-			src = source.NewFeedSource(cfg.Name, cfg.URL, "hnrss", true, false, false)
+		case "hnalgolia":
+			src = source.NewHNAlgoliaSource(cfg.Name, cfg.URL, cfg.Type)
 		case "reddit":
 			src = source.NewFeedSource(cfg.Name, cfg.URL, "reddit", false, cfg.IgnoreDays, cfg.IsChronological)
 		case "lobsters":

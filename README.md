@@ -40,7 +40,9 @@ Edit `internal/config/config.go` and rebuild:
 }
 ```
 
-**Source types:** `rss`, `reddit`, `hnrss`, `wikipedia`
+**Source types:** `rss`, `reddit`, `hnalgolia`, `wikipedia`
+
+`hnalgolia` sources fetch Hacker News directly from `hn.algolia.com`.
 
 ## Logging
 

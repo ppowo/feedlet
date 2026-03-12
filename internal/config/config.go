@@ -18,7 +18,7 @@ func GetConfig() *models.Config {
 				URL:            "https://old.reddit.com/r/italiacareeradvice/top/.rss?t=month",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           6,
+				Days:           9,
 			},
 			{
 				Name:           "r/Italia Personal Finance",
@@ -38,11 +38,11 @@ func GetConfig() *models.Config {
 			},
 			{
 				Name:           "HN 350+",
-				Type:           "hnrss",
-				URL:            "https://hnrss.org/newest?points=350",
+				Type:           "hnalgolia",
+				URL:            "https://hn.algolia.com/api/v1/search_by_date?tags=story&numericFilters=points%3E350",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           1,
+				Days:           2,
 			},
 			{
 				Name:           "r/Trackers",

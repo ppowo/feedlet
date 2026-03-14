@@ -11,13 +11,11 @@
 </head>
 
 <body class="flex h-screen flex-col overflow-hidden bg-slate-100 text-slate-900 antialiased">
-  <!-- Knowledge Question Line -->
   <a href="https://eu.startpage.com/do/search?query={{ .KnowledgeBit.SearchTerm }}&prfe=db7782ffde7fc79026fcb9735ac3535a747ab9ae506bd316fbf78e424aff11e676a57e10ca121690e7b0d2ec79120910731385a4b54d5594392332a723762ed80f8309e90a25723e0c7ec13059fe9f" target="_blank" rel="noopener noreferrer"
     class="block flex-shrink-0 border-b border-slate-300 bg-slate-50 py-1.5 text-center text-[11px] text-sky-800 hover:text-sky-900 hover:underline">
     {{ .KnowledgeBit.Question }}
   </a>
 
-  <!-- Main Content Area -->
   <div
     class="grid flex-1 min-h-0 auto-rows-max grid-cols-1 gap-1 overflow-x-hidden overflow-y-auto p-1 sm:grid-cols-2 lg:auto-rows-fr lg:grid-cols-3 xl:grid-cols-4"
     data-count="{{ len .Sources }}">
@@ -34,8 +32,15 @@
           {{ else if .IgnoreDays }}
           <span title="Timeless" class="inline-block h-2 w-2 rounded-full bg-amber-500"></span>
           {{ end }}
+          {{ if .Stale }}
+          <span class="rounded-sm bg-amber-100 px-1 py-0.5 text-[10px] font-medium text-amber-800">stale</span>
+          {{ end }}
         </div>
-        <div class="flex shrink-0 items-center gap-1.5 text-[11px]">
+        <div class="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-[11px]">
+          {{ if gt .ConsecutiveFailures 0 }}
+          <span class="rounded-sm bg-rose-100 px-1 py-0.5 text-[10px] text-rose-700">{{ .ConsecutiveFailures }} fail</span>
+          {{ end }}
+          <span class="min-w-0 flex-1 truncate text-right text-[10px] {{ if .Stale }}text-amber-800{{ else }}text-slate-500{{ end }}">{{ .StatusText }}</span>
           {{ if gt .HiddenCount 0 }}
           <span class="rounded-sm bg-slate-200 px-1 py-0.5 text-[10px] text-slate-500">+{{ .HiddenCount }} hidden</span>
           {{ end }}
@@ -44,12 +49,19 @@
       </div>
 
       <div class="flex-1 min-h-0 p-1.5 lg:overflow-y-auto">
-        {{ if .Error }}
-        <div class="m-1 flex gap-2 rounded-sm border border-rose-300 bg-rose-100/70 p-2">
+        {{ if .ShowStaleBanner }}
+        <div class="m-1 mb-2 flex gap-2 rounded-sm border border-amber-300 bg-amber-50 p-2">
           <div class="flex-shrink-0 text-[16px]">⚠️</div>
-          <div class="break-words text-[11px] leading-snug text-rose-800">{{ .Error }}</div>
+          <div class="break-words text-[11px] leading-snug text-amber-900">
+            <div>Last refresh failed. Showing cached items.</div>
+            {{ if .Error }}
+            <div class="mt-1 text-[10px] text-amber-800">{{ .Error }}</div>
+            {{ end }}
+          </div>
         </div>
-        {{ else if .Items }}
+        {{ end }}
+
+        {{ if .HasItems }}
         {{ range .Items }}
         <div class="mb-1 rounded-sm border border-transparent p-1.5 transition-colors hover:border-sky-400 hover:bg-slate-100 last:mb-0">
           <div class="text-sm leading-snug">
@@ -61,8 +73,13 @@
           {{ end }}
         </div>
         {{ end }}
+        {{ else if .ShowErrorPanel }}
+        <div class="m-1 flex gap-2 rounded-sm border border-rose-300 bg-rose-100/70 p-2">
+          <div class="flex-shrink-0 text-[16px]">⚠️</div>
+          <div class="break-words text-[11px] leading-snug text-rose-800">{{ .Error }}</div>
+        </div>
         {{ else }}
-        <div class="py-6 text-center text-[11px] text-slate-600">No items</div>
+        <div class="py-6 text-center text-[11px] text-slate-600">{{ .EmptyText }}</div>
         {{ end }}
       </div>
     </div>

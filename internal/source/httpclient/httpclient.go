@@ -3,6 +3,7 @@ package httpclient
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"math/rand"
 	"net"
 	"net/http"
@@ -51,18 +52,39 @@ func init() {
 	client = retryablehttp.NewClient()
 	client.HTTPClient.Timeout = 30 * time.Second
 	client.HTTPClient.Transport = transport
-	client.RetryMax = 3
+	client.RetryMax = 1
 	client.RetryWaitMin = 1 * time.Second
 	client.RetryWaitMax = 30 * time.Second
 	client.Logger = nil
+	client.CheckRetry = shouldRetryHTTP
+}
 
-	client.CheckRetry = func(ctx context.Context, resp *http.Response, err error) (bool, error) {
-		if err != nil {
-			return true, nil
+func shouldRetryHTTP(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	if ctx.Err() != nil {
+		return false, ctx.Err()
+	}
+
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			return false, err
 		}
-		if resp.StatusCode == 429 || (resp.StatusCode >= 500 && resp.StatusCode <= 504) {
-			return true, nil
+
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			return false, err
 		}
+
+		return true, nil
+	}
+
+	if resp == nil {
+		return false, nil
+	}
+
+	switch resp.StatusCode {
+	case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true, nil
+	default:
 		return false, nil
 	}
 }

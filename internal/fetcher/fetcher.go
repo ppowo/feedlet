@@ -3,15 +3,26 @@ package fetcher
 import (
 	"context"
 	"fmt"
-	"golang.org/x/time/rate"
 	"log"
 	"maps"
 	"math/rand"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/ppowo/feedlet/internal/models"
 	"github.com/ppowo/feedlet/internal/source"
+)
+
+const (
+	defaultFetchTimeout        = 30 * time.Second
+	defaultRedditHostSpacing   = 3 * time.Second
+	defaultRedditStartupJitter = 10 * time.Second
+	defaultRedditBackoffCap    = 2 * time.Hour
+	defaultSourceInterval      = 30 * time.Minute
 )
 
 type Fetcher struct {
@@ -23,6 +34,8 @@ type Fetcher struct {
 	maxSubscribers int
 	limiters       map[string]*rate.Limiter
 	limiterMu      sync.Mutex
+	hostLimiters   map[string]*rate.Limiter
+	hostLimiterMu  sync.Mutex
 	minInterval    time.Duration
 	wg             sync.WaitGroup
 	closed         bool
@@ -32,19 +45,23 @@ type Fetcher struct {
 	rngMu          sync.Mutex
 }
 
-// Config holds configuration for the fetcher
+// Config holds configuration for the fetcher.
 type Config struct {
 	MaxSubscribers   int
 	MinFetchInterval time.Duration
 }
 
 type sourceWithConfig struct {
-	source         source.Source
-	interval       time.Duration
-	intervalJitter time.Duration
+	source            source.Source
+	interval          time.Duration
+	intervalJitter    time.Duration
+	host              string
+	isReddit          bool
+	startupStaggerMax time.Duration
+	failureBackoffCap time.Duration
 }
 
-// New creates a new Fetcher with default config
+// New creates a new Fetcher with default config.
 func New(sources []sourceWithConfig) *Fetcher {
 	return NewWithConfig(sources, Config{
 		MaxSubscribers:   1000,
@@ -52,24 +69,31 @@ func New(sources []sourceWithConfig) *Fetcher {
 	})
 }
 
+func newFeed() *models.Feed {
+	return &models.Feed{
+		Items:        make([]models.Item, 0),
+		UpdatedAt:    time.Now(),
+		Errors:       make(map[string]string),
+		SourceStates: make(map[string]models.SourceState),
+	}
+}
+
 func NewWithConfig(sources []sourceWithConfig, cfg Config) *Fetcher {
 	return &Fetcher{
 		sources: sources,
-		feed: &models.Feed{
-			Items:     make([]models.Item, 0),
-			UpdatedAt: time.Now(),
-			Errors:    make(map[string]string),
-		},
+		feed:    newFeed(),
+
 		subscribers:    make(map[chan struct{}]struct{}),
 		subOnce:        make(map[chan struct{}]*sync.Once),
 		maxSubscribers: cfg.MaxSubscribers,
 		limiters:       make(map[string]*rate.Limiter),
+		hostLimiters:   make(map[string]*rate.Limiter),
 		minInterval:    cfg.MinFetchInterval,
 		rng:            rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
-// NewFromConfigs creates a new Fetcher from source configs
+// NewFromConfigs creates a new Fetcher from source configs.
 func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubscribers int) *Fetcher {
 	sources := make([]sourceWithConfig, 0, len(configs))
 
@@ -96,30 +120,34 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 		}
 
 		sources = append(sources, sourceWithConfig{
-			source:         src,
-			interval:       time.Duration(cfg.Interval) * time.Second,
-			intervalJitter: time.Duration(cfg.IntervalJitter) * time.Second,
+			source:            src,
+			interval:          time.Duration(cfg.Interval) * time.Second,
+			intervalJitter:    time.Duration(cfg.IntervalJitter) * time.Second,
+			host:              sourceHost(cfg.URL),
+			isReddit:          cfg.Type == "reddit",
+			startupStaggerMax: defaultRedditStartupJitter,
+			failureBackoffCap: defaultRedditBackoffCap,
 		})
 	}
 
 	return &Fetcher{
 		sources: sources,
-		feed: &models.Feed{
-			Items:     make([]models.Item, 0),
-			UpdatedAt: time.Now(),
-			Errors:    make(map[string]string),
-		},
+		feed:    newFeed(),
+
 		subscribers:    make(map[chan struct{}]struct{}),
 		subOnce:        make(map[chan struct{}]*sync.Once),
 		maxSubscribers: maxSubscribers,
 		limiters:       make(map[string]*rate.Limiter),
+		hostLimiters:   make(map[string]*rate.Limiter),
 		minInterval:    time.Duration(minFetchInterval) * time.Second,
 		rng:            rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
-// Start begins fetching from all sources in background
+// Start begins fetching from all sources in background.
 func (f *Fetcher) Start(ctx context.Context) {
+	f.initSourceStates()
+
 	for _, sc := range f.sources {
 		f.wg.Add(1)
 		go func(sc sourceWithConfig) {
@@ -129,48 +157,94 @@ func (f *Fetcher) Start(ctx context.Context) {
 	}
 }
 
-// fetchLoop runs a fetch loop for a single source with semi-random intervals
+// fetchLoop runs a fetch loop for a single source with semi-random intervals.
 func (f *Fetcher) fetchLoop(ctx context.Context, sc sourceWithConfig) {
-	// Check if context is already cancelled
 	if ctx.Err() != nil {
 		return
 	}
 
-	// Fetch immediately on start
-	f.fetchSource(ctx, sc.source)
-
-	ticker := time.NewTicker(f.nextInterval(sc))
-	defer ticker.Stop()
+	if !f.waitInitialDelay(ctx, sc) {
+		return
+	}
 
 	for {
+		if ctx.Err() != nil {
+			return
+		}
+
+		f.fetchSource(ctx, sc)
+		f.notifySubscribers()
+
+		delay := f.nextDelay(sc)
+		f.logNextFetch(sc, delay)
+
+		timer := time.NewTimer(delay)
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return
-		case <-ticker.C:
-			// Check context before fetching
-			if ctx.Err() != nil {
-				return
-			}
-			f.fetchSource(ctx, sc.source)
-			ticker.Reset(f.nextInterval(sc))
+		case <-timer.C:
 		}
 	}
 }
 
-// nextInterval calculates the next interval with jitter
-func (f *Fetcher) nextInterval(sc sourceWithConfig) time.Duration {
-	if sc.intervalJitter == 0 {
-		return sc.interval
+func (f *Fetcher) waitInitialDelay(ctx context.Context, sc sourceWithConfig) bool {
+	if !sc.isReddit || sc.startupStaggerMax <= 0 {
+		return true
 	}
-	// Use shared random generator with mutex protection
-	f.rngMu.Lock()
-	defer f.rngMu.Unlock()
-	jitter := time.Duration(f.rng.Int63n(int64(sc.intervalJitter)))
-	return sc.interval + jitter
+
+	delay := f.randomDuration(sc.startupStaggerMax)
+	if delay <= 0 {
+		return true
+	}
+
+	log.Printf("Initial stagger for %s: first fetch %s", sc.source.Name(), delay.Round(time.Second))
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
 }
 
-func (f *Fetcher) fetchSource(ctx context.Context, src source.Source) {
-	log.Printf("Fetching from %s (%s)", src.Name(), src.Type())
+func (f *Fetcher) nextDelay(sc sourceWithConfig) time.Duration {
+	base := sc.interval
+	if base <= 0 {
+		base = defaultSourceInterval
+	}
+	if sc.intervalJitter > 0 {
+		base += f.randomDuration(sc.intervalJitter)
+	}
+	if !sc.isReddit {
+		return base
+	}
+
+	failures := f.consecutiveFailures(sc.source.Name())
+	if failures <= 1 {
+		return base
+	}
+
+	multiplier := 1
+	for i := 1; i < failures; i++ {
+		if multiplier >= 64 {
+			break
+		}
+		multiplier *= 2
+	}
+
+	delay := time.Duration(multiplier) * base
+	if sc.failureBackoffCap > 0 && delay > sc.failureBackoffCap {
+		return sc.failureBackoffCap
+	}
+	return delay
+}
+
+func (f *Fetcher) fetchSource(ctx context.Context, sc sourceWithConfig) {
+	src := sc.source
 
 	if f.minInterval > 0 {
 		limiter := f.getLimiter(src)
@@ -180,38 +254,32 @@ func (f *Fetcher) fetchSource(ctx context.Context, src source.Source) {
 		}
 	}
 
-	fetchCtx, fetchCancel := context.WithTimeout(ctx, 30*time.Second)
-	defer fetchCancel()
-
-	items, err := src.Fetch(fetchCtx)
-
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	if err != nil {
-		log.Printf("Error fetching from %s: %v", src.Name(), err)
-		f.feed.Errors[src.Name()] = err.Error()
-		f.feed.UpdatedAt = time.Now()
-		f.notifySubscribers()
-		return
-	}
-
-	delete(f.feed.Errors, src.Name())
-
-	newItems := make([]models.Item, 0, len(f.feed.Items))
-	for _, item := range f.feed.Items {
-		if item.SourceName != src.Name() {
-			newItems = append(newItems, item)
+	if limiter := f.getHostLimiter(sc); limiter != nil {
+		if err := limiter.Wait(ctx); err != nil {
+			log.Printf("Host limiting %s (%s): %v", src.Name(), sc.host, err)
+			return
 		}
 	}
 
-	newItems = append(newItems, items...)
-	f.feed.Items = newItems
-	f.feed.UpdatedAt = time.Now()
+	start := time.Now()
+	attemptAt := start
+	f.markAttempt(sc, attemptAt)
+	log.Printf("Fetching from %s (%s)", src.Name(), src.Type())
 
-	log.Printf("Fetched %d items from %s", len(items), src.Name())
+	fetchCtx, fetchCancel := context.WithTimeout(ctx, defaultFetchTimeout)
+	defer fetchCancel()
 
-	f.notifySubscribers()
+	items, err := src.Fetch(fetchCtx)
+	duration := time.Since(start)
+
+	if err != nil {
+		failures := f.markFailure(sc, attemptAt, err)
+		log.Printf("Error fetching from %s (host=%s, duration=%s, failures=%d): %v", src.Name(), sc.host, duration.Round(time.Millisecond), failures, err)
+		return
+	}
+
+	f.markSuccess(sc, attemptAt, items)
+	log.Printf("Fetched %d items from %s (host=%s, duration=%s)", len(items), src.Name(), sc.host, duration.Round(time.Millisecond))
 }
 
 func (f *Fetcher) getLimiter(src source.Source) *rate.Limiter {
@@ -228,6 +296,139 @@ func (f *Fetcher) getLimiter(src source.Source) *rate.Limiter {
 	return limiter
 }
 
+func (f *Fetcher) getHostLimiter(sc sourceWithConfig) *rate.Limiter {
+	if !sc.isReddit || sc.host == "" {
+		return nil
+	}
+
+	f.hostLimiterMu.Lock()
+	defer f.hostLimiterMu.Unlock()
+
+	if limiter, exists := f.hostLimiters[sc.host]; exists {
+		return limiter
+	}
+
+	limiter := rate.NewLimiter(rate.Every(defaultRedditHostSpacing), 1)
+	f.hostLimiters[sc.host] = limiter
+	return limiter
+}
+
+func (f *Fetcher) initSourceStates() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for _, sc := range f.sources {
+		state := f.ensureSourceStateLocked(sc)
+		f.feed.SourceStates[sc.source.Name()] = state
+	}
+}
+
+func (f *Fetcher) ensureSourceStateLocked(sc sourceWithConfig) models.SourceState {
+	if state, exists := f.feed.SourceStates[sc.source.Name()]; exists {
+		if state.Type == "" {
+			state.Type = sc.source.Type()
+		}
+		if state.Host == "" {
+			state.Host = sc.host
+		}
+		if state.Name == "" {
+			state.Name = sc.source.Name()
+		}
+		return state
+	}
+
+	return models.SourceState{
+		Name:  sc.source.Name(),
+		Type:  sc.source.Type(),
+		Host:  sc.host,
+		Stale: false,
+	}
+}
+
+func (f *Fetcher) markAttempt(sc sourceWithConfig, at time.Time) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	state := f.ensureSourceStateLocked(sc)
+	state.LastAttemptAt = at
+	f.feed.SourceStates[sc.source.Name()] = state
+}
+
+func (f *Fetcher) markFailure(sc sourceWithConfig, at time.Time, err error) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	state := f.ensureSourceStateLocked(sc)
+	state.LastAttemptAt = at
+	state.LastError = err.Error()
+	state.ConsecutiveFailures++
+	state.Stale = true
+	f.feed.SourceStates[sc.source.Name()] = state
+	f.feed.Errors[sc.source.Name()] = err.Error()
+	f.feed.UpdatedAt = time.Now()
+
+	return state.ConsecutiveFailures
+}
+
+func (f *Fetcher) markSuccess(sc sourceWithConfig, at time.Time, items []models.Item) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	newItems := make([]models.Item, 0, len(f.feed.Items)+len(items))
+	for _, item := range f.feed.Items {
+		if item.SourceName != sc.source.Name() {
+			newItems = append(newItems, item)
+		}
+	}
+	newItems = append(newItems, items...)
+	f.feed.Items = newItems
+
+	state := f.ensureSourceStateLocked(sc)
+	state.LastAttemptAt = at
+	state.LastSuccessAt = at
+	state.LastError = ""
+	state.ConsecutiveFailures = 0
+	state.Stale = false
+	f.feed.SourceStates[sc.source.Name()] = state
+
+	delete(f.feed.Errors, sc.source.Name())
+	f.feed.UpdatedAt = time.Now()
+}
+
+func (f *Fetcher) consecutiveFailures(sourceName string) int {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	if state, exists := f.feed.SourceStates[sourceName]; exists {
+		return state.ConsecutiveFailures
+	}
+	return 0
+}
+
+func (f *Fetcher) logNextFetch(sc sourceWithConfig, delay time.Duration) {
+	failures := f.consecutiveFailures(sc.source.Name())
+	backoff := sc.isReddit && failures > 1
+	log.Printf("Next fetch for %s in %s (backoff=%t, failures=%d)", sc.source.Name(), delay.Round(time.Second), backoff, failures)
+}
+
+func (f *Fetcher) randomDuration(max time.Duration) time.Duration {
+	if max <= 0 {
+		return 0
+	}
+
+	f.rngMu.Lock()
+	defer f.rngMu.Unlock()
+	return time.Duration(f.rng.Int63n(int64(max)))
+}
+
+func sourceHost(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(parsed.Hostname())
+}
+
 func (f *Fetcher) Shutdown() error {
 	f.closedMu.Lock()
 	f.closed = true
@@ -237,17 +438,15 @@ func (f *Fetcher) Shutdown() error {
 	return nil
 }
 
-// Subscribe returns a channel that receives notifications when feed updates
+// Subscribe returns a channel that receives notifications when feed updates.
 func (f *Fetcher) Subscribe() (chan struct{}, error) {
 	f.subMu.Lock()
 	defer f.subMu.Unlock()
 
-	// Check if we've reached the subscriber limit
 	if f.maxSubscribers > 0 && len(f.subscribers) >= f.maxSubscribers {
 		return nil, fmt.Errorf("subscriber limit reached (max: %d)", f.maxSubscribers)
 	}
 
-	// Check if fetcher is closed (under its own mutex)
 	f.closedMu.Lock()
 	isClosed := f.closed
 	f.closedMu.Unlock()
@@ -262,14 +461,13 @@ func (f *Fetcher) Subscribe() (chan struct{}, error) {
 	return ch, nil
 }
 
-// Unsubscribe removes a subscriber channel
+// Unsubscribe removes a subscriber channel.
 func (f *Fetcher) Unsubscribe(ch chan struct{}) {
 	f.subMu.Lock()
 	defer f.subMu.Unlock()
 
 	if _, exists := f.subscribers[ch]; exists {
 		delete(f.subscribers, ch)
-		// Use sync.Once to prevent double-close
 		if once, ok := f.subOnce[ch]; ok {
 			once.Do(func() {
 				close(ch)
@@ -279,7 +477,7 @@ func (f *Fetcher) Unsubscribe(ch chan struct{}) {
 	}
 }
 
-// notifySubscribers sends update notifications to all subscribers
+// notifySubscribers sends update notifications to all subscribers.
 func (f *Fetcher) notifySubscribers() {
 	f.subMu.Lock()
 	defer f.subMu.Unlock()
@@ -288,24 +486,25 @@ func (f *Fetcher) notifySubscribers() {
 		select {
 		case ch <- struct{}{}:
 		default:
-			// Channel full, skip
 		}
 	}
 }
 
-// GetFeed returns a copy of the current feed
+// GetFeed returns a copy of the current feed.
 func (f *Fetcher) GetFeed() models.Feed {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	// Copy errors map
 	errorsCopy := make(map[string]string, len(f.feed.Errors))
 	maps.Copy(errorsCopy, f.feed.Errors)
 
-	// Return a copy to avoid race conditions
+	statesCopy := make(map[string]models.SourceState, len(f.feed.SourceStates))
+	maps.Copy(statesCopy, f.feed.SourceStates)
+
 	return models.Feed{
-		Items:     append([]models.Item(nil), f.feed.Items...),
-		UpdatedAt: f.feed.UpdatedAt,
-		Errors:    errorsCopy,
+		Items:        append([]models.Item(nil), f.feed.Items...),
+		UpdatedAt:    f.feed.UpdatedAt,
+		Errors:       errorsCopy,
+		SourceStates: statesCopy,
 	}
 }

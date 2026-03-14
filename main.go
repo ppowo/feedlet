@@ -64,7 +64,7 @@ func main() {
 		}
 	}
 
-	srv, err := server.New(f, web.IndexTemplate, port, sourceLimits, sourceDays)
+	srv, err := server.New(f, web.IndexTemplate, port, cfg.Sources, sourceLimits, sourceDays)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -14,21 +14,22 @@ import (
 	"github.com/ppowo/feedlet/internal/aggregator"
 	"github.com/ppowo/feedlet/internal/fetcher"
 	"github.com/ppowo/feedlet/internal/knowledge"
+	"github.com/ppowo/feedlet/internal/models"
 )
 
-// Server represents the HTTP server
+// Server represents the HTTP server.
 type Server struct {
-	fetcher      *fetcher.Fetcher
-	tmpl         *template.Template
-	port         int
-	sourceLimits map[string]int
-	sourceDays   map[string]int
-	httpServer   *http.Server
+	fetcher       *fetcher.Fetcher
+	tmpl          *template.Template
+	port          int
+	sourceConfigs []models.SourceConfig
+	sourceLimits  map[string]int
+	sourceDays    map[string]int
+	httpServer    *http.Server
 }
 
-// New creates a new server from embedded template content
-func New(f *fetcher.Fetcher, templateContent string, port int, sourceLimits map[string]int, sourceDays map[string]int) (*Server, error) {
-	// Custom template functions
+// New creates a new server from embedded template content.
+func New(f *fetcher.Fetcher, templateContent string, port int, sourceConfigs []models.SourceConfig, sourceLimits map[string]int, sourceDays map[string]int) (*Server, error) {
 	funcMap := template.FuncMap{
 		"formatTime":    func(t time.Time) string { return t.Format("Jan 2, 2006 3:04 PM") },
 		"formatTimeAgo": humanize.Time,
@@ -40,19 +41,22 @@ func New(f *fetcher.Fetcher, templateContent string, port int, sourceLimits map[
 	}
 
 	s := &Server{
-		fetcher:      f,
-		tmpl:         tmpl,
-		port:         port,
-		sourceLimits: sourceLimits,
-		sourceDays:   sourceDays,
-		httpServer: &http.Server{
-			Addr: fmt.Sprintf(":%d", port),
-		},
+		fetcher:       f,
+		tmpl:          tmpl,
+		port:          port,
+		sourceConfigs: append([]models.SourceConfig(nil), sourceConfigs...),
+		sourceLimits:  sourceLimits,
+		sourceDays:    sourceDays,
 	}
 
-	// Setup routes
-	http.HandleFunc("/", s.handleIndex)
-	http.HandleFunc("/events", s.handleSSE)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", s.handleIndex)
+	mux.HandleFunc("/events", s.handleSSE)
+
+	s.httpServer = &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: mux,
+	}
 
 	return s, nil
 }
@@ -125,9 +129,8 @@ func localAccessURLs(port int) []string {
 	return urls
 }
 
-// handleSSE serves server-sent events for feed updates
+// handleSSE serves server-sent events for feed updates.
 func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
-	// Set headers for SSE
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -140,13 +143,11 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	}
 	defer s.fetcher.Unsubscribe(updateCh)
 
-	// Send ping on connect
 	fmt.Fprintf(w, "data: ping\n\n")
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}
 
-	// Listen for updates or client disconnect
 	for {
 		select {
 		case <-updateCh:
@@ -163,154 +164,186 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	feed := s.fetcher.GetFeed()
 	filteredAgg := aggregator.Process(feed).FilterBySourceDays(s.sourceDays)
-
-	// Keep both the day-filtered totals and the displayed subset.
 	filteredGrouped := filteredAgg.GroupBySource()
 	grouped := filteredAgg.LimitPerSource(s.sourceLimits).GroupBySource()
+	allGrouped := aggregator.Process(feed).GroupBySource()
 
-	// Convert to slice of sources for template
-	// Include ALL enabled sources, even if they have no items after filtering
 	type Source struct {
-		Name            string
-		Items           []any
-		IgnoreDays      bool
-		NSFW            bool
-		IsChronological bool
-		Days            int
-		HiddenCount     int
-		NewestItemAge   time.Time // For sorting by freshness
-		Error           string    // Error message if fetch failed
+		Name                string
+		Items               []any
+		HasItems            bool
+		IgnoreDays          bool
+		NSFW                bool
+		IsChronological     bool
+		Days                int
+		HiddenCount         int
+		NewestItemAge       time.Time
+		Error               string
+		Stale               bool
+		LastAttemptAt       time.Time
+		LastSuccessAt       time.Time
+		ConsecutiveFailures int
+		HasEverSucceeded    bool
+		HasHistoricalItems  bool
+		IsWaiting           bool
+		StatusText          string
+		EmptyText           string
+		ShowStaleBanner     bool
+		ShowErrorPanel      bool
+		Order               int
 	}
 
-	sources := make([]Source, 0)
-	for name, items := range grouped {
-		itemsInterface := make([]any, len(items))
-		ignoreDays := false
-		nsfw := false
-		isChronological := false
-		hiddenCount := len(filteredGrouped[name]) - len(items)
-		var newestTime time.Time
-		for i, item := range items {
-			itemsInterface[i] = item
-			if item.IgnoreDays {
-				ignoreDays = true
-			}
-			if item.NSFW {
-				nsfw = true
-			}
-			if item.IsChronological {
-				isChronological = true
-			}
-			// Track the newest item's publish time
-			if item.Published.After(newestTime) {
-				newestTime = item.Published
-			}
-		}
+	getDays := func(name string) int {
 		days := s.sourceDays[name]
 		if days == 0 {
-			days = 2 // Default
+			return 2
 		}
-
-		// Check if there's an error for this source
-		errorMsg := ""
-		if errMsg, hasError := feed.Errors[name]; hasError {
-			errorMsg = errMsg
-		}
-
-		sources = append(sources, Source{
-			Name:            name,
-			Items:           itemsInterface,
-			IgnoreDays:      ignoreDays,
-			NSFW:            nsfw,
-			IsChronological: isChronological,
-			Days:            days,
-			HiddenCount:     hiddenCount,
-			NewestItemAge:   newestTime,
-			Error:           errorMsg,
-		})
+		return days
 	}
 
-	// Add sources with no items (but are configured and enabled)
-	// We need to track which sources exist from the original feed before filtering
-	allSources := make(map[string]bool)
-	sourceIgnoreDays := make(map[string]bool)
-	sourceNSFW := make(map[string]bool)
-	sourceIsChronological := make(map[string]bool)
-	for _, item := range feed.Items {
-		allSources[item.SourceName] = true
-		if item.IgnoreDays {
-			sourceIgnoreDays[item.SourceName] = true
+	applyState := func(dst *Source, name string) {
+		if state, ok := feed.SourceStates[name]; ok {
+			dst.Error = state.LastError
+			dst.Stale = state.Stale
+			dst.LastAttemptAt = state.LastAttemptAt
+			dst.LastSuccessAt = state.LastSuccessAt
+			dst.ConsecutiveFailures = state.ConsecutiveFailures
+			dst.HasEverSucceeded = !state.LastSuccessAt.IsZero()
 		}
-		if item.NSFW {
-			sourceNSFW[item.SourceName] = true
-		}
-		if item.IsChronological {
-			sourceIsChronological[item.SourceName] = true
+		if dst.Error == "" {
+			if errMsg, ok := feed.Errors[name]; ok {
+				dst.Error = errMsg
+				dst.Stale = true
+			}
 		}
 	}
 
-	for sourceName := range allSources {
-		if _, exists := grouped[sourceName]; !exists {
-			days := s.sourceDays[sourceName]
-			if days == 0 {
-				days = 2 // Default
-			}
+	sourceByName := make(map[string]*Source, len(s.sourceConfigs))
+	ordered := make([]*Source, 0, len(s.sourceConfigs))
 
-			// Check if there's an error for this source
-			errorMsg := ""
-			if errMsg, hasError := feed.Errors[sourceName]; hasError {
-				errorMsg = errMsg
-			}
+	for i, cfg := range s.sourceConfigs {
+		src := &Source{
+			Name:            cfg.Name,
+			Items:           []any{},
+			IgnoreDays:      cfg.IgnoreDays,
+			NSFW:            cfg.NSFW,
+			IsChronological: cfg.IsChronological,
+			Days:            getDays(cfg.Name),
+			Order:           i,
+		}
+		applyState(src, cfg.Name)
+		sourceByName[cfg.Name] = src
+		ordered = append(ordered, src)
+	}
 
-			sources = append(sources, Source{
-				Name:            sourceName,
-				Items:           []any{},
-				IgnoreDays:      sourceIgnoreDays[sourceName],
-				NSFW:            sourceNSFW[sourceName],
-				IsChronological: sourceIsChronological[sourceName],
-				Days:            days,
-				HiddenCount:     0,
-				NewestItemAge:   time.Time{}, // Zero time for sources with no items
-				Error:           errorMsg,
-			})
+	ensureSource := func(name string) *Source {
+		if src, ok := sourceByName[name]; ok {
+			return src
+		}
+
+		src := &Source{
+			Name:  name,
+			Items: []any{},
+			Days:  getDays(name),
+			Order: len(ordered),
+		}
+		applyState(src, name)
+		sourceByName[name] = src
+		ordered = append(ordered, src)
+		return src
+	}
+
+	for name, items := range grouped {
+		src := ensureSource(name)
+		src.HiddenCount = len(filteredGrouped[name]) - len(items)
+		src.Items = make([]any, len(items))
+		src.HasItems = len(items) > 0
+
+		for i, item := range items {
+			src.Items[i] = item
+			if item.IgnoreDays {
+				src.IgnoreDays = true
+			}
+			if item.NSFW {
+				src.NSFW = true
+			}
+			if item.IsChronological {
+				src.IsChronological = true
+			}
+			if item.Published.After(src.NewestItemAge) {
+				src.NewestItemAge = item.Published
+			}
 		}
 	}
 
-	// Also add sources that only have errors (not in allSources because no items ever fetched)
-	for errorSourceName := range feed.Errors {
-		found := false
-		for _, src := range sources {
-			if src.Name == errorSourceName {
-				found = true
-				break
+	for name := range allGrouped {
+		src := ensureSource(name)
+		src.HasHistoricalItems = len(allGrouped[name]) > 0
+		if src.NewestItemAge.IsZero() {
+			for _, item := range allGrouped[name] {
+				if item.Published.After(src.NewestItemAge) {
+					src.NewestItemAge = item.Published
+				}
 			}
 		}
-		if !found {
-			days := s.sourceDays[errorSourceName]
-			if days == 0 {
-				days = 2
+	}
+	for name := range feed.SourceStates {
+		ensureSource(name)
+	}
+	for name := range feed.Errors {
+		ensureSource(name)
+	}
+
+	for _, src := range ordered {
+		src.IsWaiting = !src.HasItems && !src.HasEverSucceeded && src.Error == "" && src.LastAttemptAt.IsZero()
+		src.ShowStaleBanner = src.HasItems && src.Stale
+		src.ShowErrorPanel = !src.HasItems && src.Error != ""
+
+		switch {
+		case src.Stale && src.HasEverSucceeded:
+			src.StatusText = humanize.Time(src.LastSuccessAt)
+		case src.Stale && !src.LastAttemptAt.IsZero():
+			src.StatusText = "refresh failed"
+		case src.HasEverSucceeded:
+			src.StatusText = humanize.Time(src.LastSuccessAt)
+		case src.IsWaiting:
+			src.StatusText = "waiting"
+		case !src.LastAttemptAt.IsZero() && src.Error == "":
+			src.StatusText = "fetching"
+		default:
+			src.StatusText = "waiting"
+		}
+
+		if !src.HasItems && !src.ShowErrorPanel {
+			switch {
+			case src.IsWaiting:
+				src.EmptyText = "Waiting for first fetch..."
+			case src.HasEverSucceeded || src.HasHistoricalItems || !src.LastAttemptAt.IsZero():
+				src.EmptyText = "No recent items"
+			default:
+				src.EmptyText = "Waiting for first fetch..."
 			}
-			sources = append(sources, Source{
-				Name:            errorSourceName,
-				Items:           []any{},
-				IgnoreDays:      false,
-				NSFW:            false,
-				IsChronological: false,
-				Days:            days,
-				HiddenCount:     0,
-				NewestItemAge:   time.Time{},
-				Error:           feed.Errors[errorSourceName],
-			})
 		}
 	}
 
-	// Sort sources by newest item time (most recent first)
-	// Sources with no items (zero time) will appear last
-	sort.Slice(sources, func(i, j int) bool {
+	sources := make([]Source, 0, len(ordered))
+	for _, src := range ordered {
+		sources = append(sources, *src)
+	}
+
+	sort.SliceStable(sources, func(i, j int) bool {
+		if sources[i].NewestItemAge.Equal(sources[j].NewestItemAge) {
+			return sources[i].Order < sources[j].Order
+		}
+		if sources[i].NewestItemAge.IsZero() {
+			return false
+		}
+		if sources[j].NewestItemAge.IsZero() {
+			return true
+		}
 		return sources[i].NewestItemAge.After(sources[j].NewestItemAge)
 	})
 
-	// Get a random knowledge bit
 	knowledgeBit := knowledge.GetRandomBit()
 
 	data := struct {

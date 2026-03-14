@@ -11,39 +11,52 @@ type Item struct {
 	Author          string
 	Published       time.Time
 	SourceName      string
-	SourceType      string // "rss", "reddit", etc.
-	IgnoreDays      bool   // If true, don't filter by age
-	NSFW            bool   // If true, apply NSFW styling (red tint)
-	IsChronological bool   // If true, apply chronological styling (green tint)
-	HideDate        bool   // If true, don't display the date on frontend
+	SourceType      string
+	IgnoreDays      bool
+	NSFW            bool
+	IsChronological bool
+	HideDate        bool
 }
 
-// Feed represents a collection of items from all sources
+// SourceState represents the runtime health of a source.
+type SourceState struct {
+	Name                string
+	Type                string
+	Host                string
+	LastAttemptAt       time.Time
+	LastSuccessAt       time.Time
+	LastError           string
+	ConsecutiveFailures int
+	Stale               bool
+}
+
+// Feed represents a collection of items from all sources.
 type Feed struct {
-	Items     []Item
-	UpdatedAt time.Time
-	Errors    map[string]string // source name -> error message
+	Items        []Item
+	UpdatedAt    time.Time
+	Errors       map[string]string
+	SourceStates map[string]SourceState
 }
 
-// SourceConfig represents configuration for a single source
+// SourceConfig represents configuration for a single source.
 type SourceConfig struct {
 	Name            string `yaml:"name"`
-	Type            string `yaml:"type"` // "rss", "reddit", etc.
+	Type            string `yaml:"type"`
 	URL             string `yaml:"url"`
-	Interval        int    `yaml:"interval"`         // Base interval in seconds
-	IntervalJitter  int    `yaml:"interval_jitter"`  // Random jitter in seconds (0 to this value)
-	IgnoreDays      bool   `yaml:"ignore_days"`      // Don't filter by age
-	NSFW            bool   `yaml:"nsfw"`             // Apply NSFW styling (red tint)
-	IsChronological bool   `yaml:"is_chronological"` // Apply chronological styling (green tint)
-	Limit           int    `yaml:"limit"`            // Max items to show (for sources that support it)
-	Days            int    `yaml:"days"`             // Number of days to filter (default: 2)
+	Interval        int    `yaml:"interval"`
+	IntervalJitter  int    `yaml:"interval_jitter"`
+	IgnoreDays      bool   `yaml:"ignore_days"`
+	NSFW            bool   `yaml:"nsfw"`
+	IsChronological bool   `yaml:"is_chronological"`
+	Limit           int    `yaml:"limit"`
+	Days            int    `yaml:"days"`
 }
 
-// Config represents the application configuration
+// Config represents the application configuration.
 type Config struct {
 	Sources            []SourceConfig `yaml:"sources"`
 	Port               int            `yaml:"port"`
-	MinFetchInterval   int            `yaml:"min_fetch_interval"`   // Minimum interval between fetches in seconds (0 = no limit)
-	MaxSubscribers     int            `yaml:"max_subscribers"`      // Maximum concurrent subscribers (0 = unlimited)
-	DefaultSourceLimit int            `yaml:"default_source_limit"` // Default max items to show per source (0 = no limit)
+	MinFetchInterval   int            `yaml:"min_fetch_interval"`
+	MaxSubscribers     int            `yaml:"max_subscribers"`
+	DefaultSourceLimit int            `yaml:"default_source_limit"`
 }

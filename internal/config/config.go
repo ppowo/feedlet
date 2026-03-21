@@ -106,12 +106,12 @@ func GetConfig() *models.Config {
 				Days:           7,
 			},
 			{
-				Name:           "r/Selfhosted",
+				Name:           "r/SquaredCircle",
 				Type:           "reddit",
-				URL:            "https://old.reddit.com/r/selfhosted/top/.rss?t=month",
+				URL:            "https://old.reddit.com/r/SquaredCircle/top/.rss?t=week",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           7,
+				Days:           3,
 			},
 		},
 	}

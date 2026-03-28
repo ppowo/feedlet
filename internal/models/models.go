@@ -43,6 +43,7 @@ type SourceConfig struct {
 	Name            string `yaml:"name"`
 	Type            string `yaml:"type"`
 	URL             string `yaml:"url"`
+	HomeURL         string `yaml:"home_url"`
 	Interval        int    `yaml:"interval"`
 	IntervalJitter  int    `yaml:"interval_jitter"`
 	IgnoreDays      bool   `yaml:"ignore_days"`

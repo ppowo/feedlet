@@ -4,7 +4,6 @@ go 1.25
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3
-	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/dustin/go-humanize v1.0.1
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/magefile/mage v1.15.0

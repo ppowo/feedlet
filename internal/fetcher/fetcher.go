@@ -112,8 +112,8 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 			src = source.NewFourPlebsSource(cfg.Name, cfg.URL, cfg.Limit, cfg.NSFW)
 		case "desuarchive":
 			src = source.NewDesuArchiveSource(cfg.Name, cfg.URL, cfg.Limit, cfg.NSFW)
-		case "wikipedia":
-			src = source.NewWikipediaSource(cfg.Name, cfg.URL, cfg.Limit)
+		case "cagematch":
+			src = source.NewCagematchSource(cfg.Name, cfg.Limit)
 		default:
 			log.Printf("Unknown source type: %s", cfg.Type)
 			continue

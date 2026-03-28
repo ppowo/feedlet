@@ -40,9 +40,11 @@ Edit `internal/config/config.go` and rebuild:
 }
 ```
 
-**Source types:** `rss`, `reddit`, `hnalgolia`, `wikipedia`
+**Source types:** `rss`, `reddit`, `hnalgolia`, `cagematch`
 
 `hnalgolia` sources fetch Hacker News directly from `hn.algolia.com`.
+
+`cagematch` sources fetch current-year top-rated wrestling matches directly from Cagematch.
 
 ## Logging
 

@@ -170,6 +170,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	type Source struct {
 		Name                string
+		HomeURL             string
 		Items               []any
 		HasItems            bool
 		IgnoreDays          bool
@@ -224,6 +225,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	for i, cfg := range s.sourceConfigs {
 		src := &Source{
 			Name:            cfg.Name,
+			HomeURL:         cfg.HomeURL,
 			Items:           []any{},
 			IgnoreDays:      cfg.IgnoreDays,
 			NSFW:            cfg.NSFW,

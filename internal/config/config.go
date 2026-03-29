@@ -56,7 +56,7 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/trackers/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           8,
+				Days:           10,
 			},
 			{
 			Name:           "Lobsters Top (1d)",

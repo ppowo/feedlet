@@ -21,7 +21,7 @@ const (
 
 // CurrentCagematchSourceName returns the display name derived from the source thresholds.
 func CurrentCagematchSourceName() string {
-	return fmt.Sprintf("Top Matches (★%.1f+ / %d+ votes)", cagematchMinRating, cagematchMinVotes)
+	return fmt.Sprintf("Top Matches (★%.2f+ / %d+ votes)", cagematchMinRating, cagematchMinVotes)
 }
 
 // CagematchSource fetches the most recent top-rated matches from Cagematch.
@@ -47,7 +47,7 @@ func CurrentCagematchHomeURL() string {
 
 func cagematchHomeURLForYear(year int) string {
 	return fmt.Sprintf(
-		"%s?id=112&view=list&year=%d&minRating=%.1f&minVotes=%d&sortby=colDate&sorttype=DESC",
+		"%s?id=112&view=list&year=%d&minRating=%.2f&minVotes=%d&sortby=colDate&sorttype=DESC",
 		cagematchBaseURL,
 		year,
 		cagematchMinRating,

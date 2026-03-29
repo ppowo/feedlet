@@ -15,8 +15,8 @@ import (
 
 const (
 	cagematchBaseURL   = "https://www.cagematch.net/"
-	cagematchMinRating = 8.8
-	cagematchMinVotes  = 100
+	cagematchMinRating = 8.75
+	cagematchMinVotes  = 500
 )
 
 // CurrentCagematchSourceName returns the display name derived from the source thresholds.

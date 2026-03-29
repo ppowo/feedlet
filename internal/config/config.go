@@ -59,13 +59,13 @@ func GetConfig() *models.Config {
 				Days:           10,
 			},
 			{
-			Name:           "Lobsters Top (1d)",
+				Name:           "Lobsters Top (1w)",
 				Type:           "lobsters",
-				URL:            "https://lobste.rs/top/1d.rss",
+				URL:            "https://lobste.rs/top/1w.rss",
 				HomeURL:        "https://lobste.rs/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           4,
+				Days:           5,
 			},
 			{
 				Name:           "r/40k Lore",

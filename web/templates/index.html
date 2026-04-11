@@ -8,8 +8,6 @@
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css">
-  <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/themes/light-border.css">
 </head>
 
 <body class="flex h-screen flex-col overflow-hidden bg-slate-100 text-slate-900">
@@ -38,7 +36,7 @@
           {{ if gt .ConsecutiveFailures 0 }}
           <span
             class="rounded-sm bg-rose-100 px-1 py-0.5 text-[10px] text-rose-700 {{ if .Error }}cursor-help{{ end }}"
-            {{ if .Error }}data-tooltip="{{ .Error }}" title="{{ .Error }}"{{ end }}>{{ .ConsecutiveFailures }} fail</span>
+            {{ if .Error }}title="{{ .Error }}"{{ end }}>{{ .ConsecutiveFailures }} fail</span>
           {{ end }}
           <span
             class="min-w-0 flex-1 truncate text-right text-[10px] {{ if .Stale }}text-amber-800{{ else }}text-slate-700{{ end }}">{{
@@ -53,7 +51,7 @@
       <div class="flex-1 min-h-0 p-1.5 xl:overflow-y-auto">
         {{ if .ShowStaleBanner }}
         <div class="m-1 mb-2 flex gap-2 rounded-sm border border-amber-300 bg-amber-50 p-2">
-          <div class="flex-shrink-0 text-[16px] {{ if .Error }}cursor-help{{ end }}" {{ if .Error }}data-tooltip="{{ .Error }}" title="{{ .Error }}"{{ end }}>⚠️</div>
+          <div class="flex-shrink-0 text-[16px] {{ if .Error }}cursor-help{{ end }}" {{ if .Error }}title="{{ .Error }}"{{ end }}>⚠️</div>
           <div class="break-words text-[11px] leading-normal text-amber-900">
             <div>Last refresh failed. Showing cached items.</div>
           </div>
@@ -75,7 +73,7 @@
         {{ end }}
         {{ else if .ShowErrorPanel }}
         <div class="m-1 flex gap-2 rounded-sm border border-rose-300 bg-rose-100/70 p-2">
-          <div class="flex-shrink-0 text-[16px] {{ if .Error }}cursor-help{{ end }}" {{ if .Error }}data-tooltip="{{ .Error }}" title="{{ .Error }}"{{ end }}>⚠️</div>
+          <div class="flex-shrink-0 text-[16px] {{ if .Error }}cursor-help{{ end }}" {{ if .Error }}title="{{ .Error }}"{{ end }}>⚠️</div>
           <div class="break-words text-[11px] leading-normal text-rose-800">Failed to load items.</div>
         </div>
         {{ else }}
@@ -93,24 +91,7 @@
     {{ end }}
   </div>
 
-  <script src="https://unpkg.com/@popperjs/core@2"></script>
-  <script src="https://unpkg.com/tippy.js@6"></script>
   <script>
-    if (window.tippy) {
-      document.querySelectorAll('[data-tooltip]').forEach((element) => {
-        element.removeAttribute('title');
-      });
-
-      tippy('[data-tooltip]', {
-        appendTo: () => document.body,
-        content(reference) {
-          return reference.getAttribute('data-tooltip') || '';
-        },
-        maxWidth: 480,
-        placement: 'top',
-        theme: 'light-border',
-      });
-    }
 
     const eventSource = new EventSource('/events');
     eventSource.onmessage = function(event) {

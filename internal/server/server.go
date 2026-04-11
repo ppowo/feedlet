@@ -13,7 +13,6 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/ppowo/feedlet/internal/aggregator"
 	"github.com/ppowo/feedlet/internal/fetcher"
-	"github.com/ppowo/feedlet/internal/knowledge"
 	"github.com/ppowo/feedlet/internal/models"
 )
 
@@ -346,18 +345,14 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return sources[i].NewestItemAge.After(sources[j].NewestItemAge)
 	})
 
-	knowledgeBit := knowledge.GetRandomBit()
-
 	data := struct {
-		Sources      []Source
-		UpdatedAt    time.Time
-		Title        string
-		KnowledgeBit knowledge.KnowledgeBit
+		Sources   []Source
+		UpdatedAt time.Time
+		Title     string
 	}{
-		Sources:      sources,
-		UpdatedAt:    feed.UpdatedAt,
-		Title:        "Feedlet",
-		KnowledgeBit: knowledgeBit,
+		Sources:   sources,
+		UpdatedAt: feed.UpdatedAt,
+		Title:     "Feedlet",
 	}
 
 	if err := s.tmpl.Execute(w, data); err != nil {

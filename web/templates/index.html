@@ -13,19 +13,14 @@
 </head>
 
 <body class="flex h-screen flex-col overflow-hidden bg-slate-100 text-slate-900">
-  <a href="https://eu.startpage.com/do/search?query={{ .KnowledgeBit.SearchTerm }}&prfe=db7782ffde7fc79026fcb9735ac3535a747ab9ae506bd316fbf78e424aff11e676a57e10ca121690e7b0d2ec79120910731385a4b54d5594392332a723762ed80f8309e90a25723e0c7ec13059fe9f"
-    target="_blank" rel="noopener noreferrer"
-    class="block flex-shrink-0 border-b border-slate-300 bg-slate-50 py-1.5 text-center text-[11px] text-sky-800 hover:text-sky-900 hover:underline">
-    {{ .KnowledgeBit.Question }}
-  </a>
 
   <div
-    class="grid flex-1 min-h-0 auto-rows-max grid-cols-1 gap-1 overflow-x-hidden overflow-y-auto p-1 sm:grid-cols-2 lg:auto-rows-fr lg:grid-cols-3 xl:grid-cols-4"
+    class="grid flex-1 min-h-0 auto-rows-max grid-cols-1 gap-1 overflow-x-hidden overflow-y-auto p-1 sm:grid-cols-2 lg:grid-cols-3 xl:auto-rows-fr xl:grid-cols-4"
     data-count="{{ len .Sources }}">
     {{ if .Sources }}
     {{ range .Sources }}
     <div
-      class="flex flex-col rounded-sm border border-slate-300 border-l-4 bg-slate-50 lg:min-h-0 {{ if .NSFW }}border-l-rose-500{{ else if .IsChronological }}border-l-emerald-500{{ else if .IgnoreDays }}border-l-amber-500{{ else }}border-l-slate-400{{ end }}">
+      class="flex flex-col rounded-sm border border-slate-300 border-l-4 bg-slate-50 xl:min-h-0 {{ if .NSFW }}border-l-rose-500{{ else if .IsChronological }}border-l-emerald-500{{ else if .IgnoreDays }}border-l-amber-500{{ else }}border-l-slate-400{{ end }}">
       <div
         class="flex flex-shrink-0 items-center justify-between gap-1.5 border-b border-slate-300 bg-slate-100 px-2 py-1.5">
         <div class="flex min-w-0 items-center gap-1.5">
@@ -55,7 +50,7 @@
         </div>
       </div>
 
-      <div class="flex-1 min-h-0 p-1.5 lg:overflow-y-auto">
+      <div class="flex-1 min-h-0 p-1.5 xl:overflow-y-auto">
         {{ if .ShowStaleBanner }}
         <div class="m-1 mb-2 flex gap-2 rounded-sm border border-amber-300 bg-amber-50 p-2">
           <div class="flex-shrink-0 text-[16px] {{ if .Error }}cursor-help{{ end }}" {{ if .Error }}data-tooltip="{{ .Error }}" title="{{ .Error }}"{{ end }}>⚠️</div>
@@ -67,14 +62,14 @@
 
         {{ if .HasItems }}
         {{ range .Items }}
-        <div class="mb-1 rounded-sm p-1.5 transition-colors hover:bg-slate-100 last:mb-0">
+        <div class="mb-1 rounded-sm px-1.5 py-2 transition-colors hover:bg-slate-100 last:mb-0">
           <div class="text-sm leading-normal">
             <a href="{{ .Link }}" target="_blank" rel="noopener noreferrer"
               class="block truncate font-medium text-sky-800 hover:text-sky-900 hover:underline visited:text-violet-800">{{
               .Title }}</a>
           </div>
           {{ if not .HideDate }}
-          <div class="mt-0.5 text-[11px] text-slate-700">{{ formatTimeAgo .Published }}</div>
+          <div class="mt-1 text-[11px] text-slate-700">{{ formatTimeAgo .Published }}</div>
           {{ end }}
         </div>
         {{ end }}

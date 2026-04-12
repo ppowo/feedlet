@@ -29,7 +29,7 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/ItaliaPersonalFinance/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           9,
+				Days:           10,
 			},
 			{
 				Name:           "r/Programming",
@@ -38,7 +38,7 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/programming/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           8,
+				Days:           10,
 			},
 			{
 				Name:           "HN 350+",
@@ -56,7 +56,7 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/trackers/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           11,
+				Days:           13,
 			},
 			{
 				Name:           "Lobsters Top (1w)",

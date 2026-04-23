@@ -102,6 +102,8 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 		switch cfg.Type {
 		case "rss":
 			src = source.NewFeedSource(cfg.Name, cfg.URL, "rss", false, false, false)
+		case "tildes":
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "tildes", true, false, false)
 		case "hnalgolia":
 			src = source.NewHNAlgoliaSource(cfg.Name, cfg.URL, cfg.Type)
 		case "reddit":

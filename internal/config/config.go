@@ -61,7 +61,7 @@ func GetConfig() *models.Config {
 			{
 				Name:           "Tildes ~tech",
 				Type:           "tildes",
-				URL:            "https://tildes.net/~tech/topics.atom?order=votes&period=90d",
+				URL:            "https://tildes.net/~tech?order=votes&period=90d",
 				HomeURL:        "https://tildes.net/~tech?order=votes&period=90d",
 				Interval:       1800,
 				IntervalJitter: 120,

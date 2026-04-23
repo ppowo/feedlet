@@ -1,8 +1,11 @@
 package source
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -60,14 +63,60 @@ func (c *CagematchSource) buildURL() string {
 	return CurrentCagematchHomeURL()
 }
 
-func (c *CagematchSource) Fetch(ctx context.Context) ([]models.Item, error) {
-	fetchURL := c.buildURL()
+func (c *CagematchSource) fetchDocument(ctx context.Context, fetchURL string) (*goquery.Document, error) {
+	body, err := c.fetchBody(ctx, fetchURL)
+	if err != nil {
+		return nil, err
+	}
 
-	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", fetchURL, nil)
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("cagematch: failed to parse HTML: %w", err)
+	}
+
+	return doc, nil
+}
+
+func (c *CagematchSource) fetchBody(ctx context.Context, fetchURL string) ([]byte, error) {
+	userAgent := httpclient.RandomUserAgent()
+
+	body, err := c.doRequest(ctx, fetchURL, userAgent, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	cookie, isChallenge, err := parseSucuriChallengeCookie(body)
+	if err != nil {
+		return nil, fmt.Errorf("cagematch: failed to solve Sucuri challenge: %w", err)
+	}
+	if !isChallenge {
+		return body, nil
+	}
+
+	body, err = c.doRequest(ctx, fetchURL, userAgent, cookie)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, stillChallenge, err := parseSucuriChallengeCookie(body); err != nil {
+		return nil, fmt.Errorf("cagematch: failed to solve Sucuri challenge: %w", err)
+	} else if stillChallenge {
+		return nil, fmt.Errorf("cagematch: sucuri challenge remained after retry")
+	}
+
+	return body, nil
+}
+
+func (c *CagematchSource) doRequest(ctx context.Context, fetchURL, userAgent string, cookie *http.Cookie) ([]byte, error) {
+	req, err := retryablehttp.NewRequestWithContext(ctx, http.MethodGet, fetchURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cagematch: failed to create request: %w", err)
 	}
-	req.Header.Set("User-Agent", httpclient.RandomUserAgent())
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
 
 	resp, err := httpclient.GetClient().Do(req)
 	if err != nil {
@@ -79,12 +128,24 @@ func (c *CagematchSource) Fetch(ctx context.Context) ([]models.Item, error) {
 		return nil, fmt.Errorf("cagematch: unexpected status %d", resp.StatusCode)
 	}
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("cagematch: failed to parse HTML: %w", err)
+		return nil, fmt.Errorf("cagematch: failed to read body: %w", err)
+	}
+
+	return body, nil
+}
+
+func (c *CagematchSource) Fetch(ctx context.Context) ([]models.Item, error) {
+	fetchURL := c.buildURL()
+
+	doc, err := c.fetchDocument(ctx, fetchURL)
+	if err != nil {
+		return nil, err
 	}
 
 	items := make([]models.Item, 0)
+	dataRows := 0 // rows that look like valid matchguide data (even if filtered out)
 
 	doc.Find("tr").Each(func(_ int, row *goquery.Selection) {
 		if c.limit > 0 && len(items) >= c.limit {
@@ -107,6 +168,8 @@ func (c *CagematchSource) Fetch(ctx context.Context) ([]models.Item, error) {
 		if err != nil {
 			return
 		}
+
+		dataRows++ // this row passed basic structure checks
 
 		// Col 2: promotion — collect alt text from all promotion images
 		var promotionParts []string
@@ -164,6 +227,15 @@ func (c *CagematchSource) Fetch(ctx context.Context) ([]models.Item, error) {
 			IgnoreDays:  true,
 		})
 	})
+
+	// If zero data rows were found, the response still doesn't contain the
+	// expected matchguide table after fetchBody handled the common Sucuri
+	// challenge. Treat this as an unexpected page/layout mismatch so
+	// markFailure preserves any previously cached items. When rows exist but
+	// none pass the rating/vote filters, we correctly return an empty slice.
+	if dataRows == 0 {
+		return nil, fmt.Errorf("cagematch: no matchguide data rows found on page")
+	}
 
 	return items, nil
 }

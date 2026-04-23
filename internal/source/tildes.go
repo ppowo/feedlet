@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	neturl "net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -14,22 +15,21 @@ import (
 	"github.com/ppowo/feedlet/internal/source/httpclient"
 )
 
-const (
-	tildesDefaultMaxPages = 10
-	tildesDefaultMaxItems = 500
-)
-
 // TildesSource fetches topic listings directly from Tildes HTML pages.
 type TildesSource struct {
-	name string
-	url  string
+	name       string
+	url        string
+	limit      int
+	ignoreDays bool
 }
 
 // NewTildesSource creates a new Tildes source.
-func NewTildesSource(name, rawURL string) *TildesSource {
+func NewTildesSource(name, rawURL string, limit int, ignoreDays bool) *TildesSource {
 	return &TildesSource{
-		name: name,
-		url:  normalizeTildesURL(rawURL),
+		name:       name,
+		url:        normalizeTildesURL(rawURL),
+		limit:      limit,
+		ignoreDays: ignoreDays,
 	}
 }
 
@@ -93,9 +93,9 @@ func (t *TildesSource) parseTopic(article *goquery.Selection, baseURL *neturl.UR
 		return models.Item{}, false
 	}
 
-	linkHref := strings.TrimSpace(titleLink.AttrOr("href", ""))
+	linkHref := strings.TrimSpace(article.Find("footer.topic-info .topic-info-comments a[href]").First().AttrOr("href", ""))
 	if linkHref == "" {
-		linkHref = strings.TrimSpace(article.Find("footer.topic-info .topic-info-comments a[href]").First().AttrOr("href", ""))
+		linkHref = strings.TrimSpace(titleLink.AttrOr("href", ""))
 	}
 	if linkHref == "" {
 		return models.Item{}, false
@@ -119,31 +119,14 @@ func (t *TildesSource) parseTopic(article *goquery.Selection, baseURL *neturl.UR
 		Published:   published,
 		SourceName:  t.name,
 		SourceType:  "tildes",
+		IgnoreDays:  t.ignoreDays,
 	}, true
 }
 
-func nextTildesPageURL(doc *goquery.Document, baseURL *neturl.URL) string {
-	nextURL := ""
-	doc.Find(".pagination a.page-item[href]").EachWithBreak(func(_ int, s *goquery.Selection) bool {
-		if !strings.EqualFold(strings.TrimSpace(s.Text()), "Next") {
-			return true
-		}
-
-		href, ok := s.Attr("href")
-		if !ok {
-			return true
-		}
-
-		nextURL = resolveTildesURL(baseURL, href)
-		return false
-	})
-	return nextURL
-}
-
-func (t *TildesSource) parseListingPage(doc *goquery.Document, baseURL *neturl.URL) ([]models.Item, string, error) {
+func (t *TildesSource) parseListingPage(doc *goquery.Document, baseURL *neturl.URL) ([]models.Item, error) {
 	listing := doc.Find("ol.topic-listing")
 	if listing.Length() == 0 {
-		return nil, "", fmt.Errorf("tildes: topic listing not found")
+		return nil, fmt.Errorf("tildes: topic listing not found")
 	}
 
 	items := make([]models.Item, 0, 32)
@@ -153,47 +136,27 @@ func (t *TildesSource) parseListingPage(doc *goquery.Document, baseURL *neturl.U
 		}
 	})
 
-	return items, nextTildesPageURL(doc, baseURL), nil
+	return items, nil
 }
 
 // Fetch retrieves topics from the configured Tildes listing.
 func (t *TildesSource) Fetch(ctx context.Context) ([]models.Item, error) {
-	nextURL := t.url
-	items := make([]models.Item, 0, 50)
-	seen := make(map[string]struct{})
-	visited := make(map[string]struct{})
+	doc, baseURL, err := t.fetchDocument(ctx, t.url)
+	if err != nil {
+		return nil, err
+	}
 
-	for page := 0; page < tildesDefaultMaxPages && nextURL != ""; page++ {
-		if _, ok := visited[nextURL]; ok {
-			break
-		}
-		visited[nextURL] = struct{}{}
+	items, err := t.parseListingPage(doc, baseURL)
+	if err != nil {
+		return nil, err
+	}
 
-		doc, baseURL, err := t.fetchDocument(ctx, nextURL)
-		if err != nil {
-			return nil, err
-		}
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].Published.After(items[j].Published)
+	})
 
-		pageItems, nextPageURL, err := t.parseListingPage(doc, baseURL)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, item := range pageItems {
-			if _, ok := seen[item.Link]; ok {
-				continue
-			}
-			seen[item.Link] = struct{}{}
-			items = append(items, item)
-			if len(items) >= tildesDefaultMaxItems {
-				return items, nil
-			}
-		}
-
-		if len(pageItems) == 0 {
-			break
-		}
-		nextURL = nextPageURL
+	if t.limit > 0 && len(items) > t.limit {
+		items = items[:t.limit]
 	}
 
 	return items, nil

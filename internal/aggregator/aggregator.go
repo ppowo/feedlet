@@ -7,8 +7,6 @@ import (
 	"github.com/ppowo/feedlet/internal/models"
 )
 
-const tildesSourceType = "tildes"
-
 // Aggregate processes items from a feed.
 type Aggregate struct {
 	Items []models.Item
@@ -40,9 +38,6 @@ func (a *Aggregate) GroupBySource() map[string][]models.Item {
 	}
 
 	for _, items := range grouped {
-		if len(items) > 0 && items[0].SourceType == tildesSourceType {
-			continue
-		}
 		sortByPublished(items)
 	}
 

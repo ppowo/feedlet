@@ -65,7 +65,8 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://tildes.net/~tech?order=votes&period=90d",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           5,
+				IgnoreDays:     true,
+				Limit:          4,
 			},
 			{
 				Name:           "r/40k Lore",

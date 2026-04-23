@@ -58,11 +58,6 @@ func cagematchHomeURLForYear(year int) string {
 	)
 }
 
-// buildURL constructs the Matchguide URL for the current year.
-func (c *CagematchSource) buildURL() string {
-	return CurrentCagematchHomeURL()
-}
-
 func (c *CagematchSource) fetchDocument(ctx context.Context, fetchURL string) (*goquery.Document, error) {
 	body, err := c.fetchBody(ctx, fetchURL)
 	if err != nil {
@@ -137,7 +132,7 @@ func (c *CagematchSource) doRequest(ctx context.Context, fetchURL, userAgent str
 }
 
 func (c *CagematchSource) Fetch(ctx context.Context) ([]models.Item, error) {
-	fetchURL := c.buildURL()
+	fetchURL := CurrentCagematchHomeURL()
 
 	doc, err := c.fetchDocument(ctx, fetchURL)
 	if err != nil {

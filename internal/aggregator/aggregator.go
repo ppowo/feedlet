@@ -21,10 +21,6 @@ func Process(feed models.Feed) *Aggregate {
 	}
 }
 
-func preservesInputOrder(items []models.Item) bool {
-	return len(items) > 0 && items[0].SourceType == tildesSourceType
-}
-
 func sortByPublished(items []models.Item) {
 	if len(items) < 2 {
 		return
@@ -33,29 +29,6 @@ func sortByPublished(items []models.Item) {
 	sort.SliceStable(items, func(i, j int) bool {
 		return items[i].Published.After(items[j].Published)
 	})
-}
-
-func sortItemsForSource(items []models.Item) {
-	if preservesInputOrder(items) {
-		return
-	}
-
-	sortByPublished(items)
-}
-
-func sourceNamesInOrder(items []models.Item) []string {
-	names := make([]string, 0)
-	seen := make(map[string]struct{})
-
-	for _, item := range items {
-		if _, ok := seen[item.SourceName]; ok {
-			continue
-		}
-		seen[item.SourceName] = struct{}{}
-		names = append(names, item.SourceName)
-	}
-
-	return names
 }
 
 // GroupBySource groups items by their source name.
@@ -67,7 +40,10 @@ func (a *Aggregate) GroupBySource() map[string][]models.Item {
 	}
 
 	for _, items := range grouped {
-		sortItemsForSource(items)
+		if len(items) > 0 && items[0].SourceType == tildesSourceType {
+			continue
+		}
+		sortByPublished(items)
 	}
 
 	return grouped
@@ -155,15 +131,20 @@ func (a *Aggregate) LimitPerSource(limits map[string]int) *Aggregate {
 
 	grouped := a.GroupBySource()
 	filtered := make([]models.Item, 0, len(a.Items))
+	seen := make(map[string]struct{})
 
-	for _, sourceName := range sourceNamesInOrder(a.Items) {
-		items := grouped[sourceName]
-		limit, hasLimit := limits[sourceName]
-		if !hasLimit || limit <= 0 || limit >= len(items) {
-			filtered = append(filtered, items...)
+	for _, item := range a.Items {
+		sourceName := item.SourceName
+		if _, ok := seen[sourceName]; ok {
 			continue
 		}
-		filtered = append(filtered, items[:limit]...)
+		seen[sourceName] = struct{}{}
+
+		items := grouped[sourceName]
+		if limit := limits[sourceName]; limit > 0 && limit < len(items) {
+			items = items[:limit]
+		}
+		filtered = append(filtered, items...)
 	}
 
 	return &Aggregate{

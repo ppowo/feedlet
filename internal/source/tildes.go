@@ -21,19 +21,15 @@ const (
 
 // TildesSource fetches topic listings directly from Tildes HTML pages.
 type TildesSource struct {
-	name     string
-	url      string
-	maxPages int
-	maxItems int
+	name string
+	url  string
 }
 
 // NewTildesSource creates a new Tildes source.
 func NewTildesSource(name, rawURL string) *TildesSource {
 	return &TildesSource{
-		name:     name,
-		url:      normalizeTildesURL(rawURL),
-		maxPages: tildesDefaultMaxPages,
-		maxItems: tildesDefaultMaxItems,
+		name: name,
+		url:  normalizeTildesURL(rawURL),
 	}
 }
 
@@ -91,29 +87,33 @@ func (t *TildesSource) fetchDocument(ctx context.Context, fetchURL string) (*goq
 }
 
 func (t *TildesSource) parseTopic(article *goquery.Selection, baseURL *neturl.URL) (models.Item, bool) {
-	title := strings.TrimSpace(article.Find("h1.topic-title a").First().Text())
+	titleLink := article.Find("h1.topic-title a[href]").First()
+	title := strings.TrimSpace(titleLink.Text())
 	if title == "" {
 		return models.Item{}, false
 	}
 
-	commentsLink, ok := article.Find("footer.topic-info .topic-info-comments a[href]").First().Attr("href")
-	if !ok || strings.TrimSpace(commentsLink) == "" {
+	linkHref := strings.TrimSpace(titleLink.AttrOr("href", ""))
+	if linkHref == "" {
+		linkHref = strings.TrimSpace(article.Find("footer.topic-info .topic-info-comments a[href]").First().AttrOr("href", ""))
+	}
+	if linkHref == "" {
 		return models.Item{}, false
 	}
 
-	datetime, ok := article.Find("footer.topic-info time[datetime]").First().Attr("datetime")
-	if !ok || strings.TrimSpace(datetime) == "" {
+	datetime := strings.TrimSpace(article.Find("footer.topic-info time[datetime]").First().AttrOr("datetime", ""))
+	if datetime == "" {
 		return models.Item{}, false
 	}
 
-	published, err := time.Parse(time.RFC3339, strings.TrimSpace(datetime))
+	published, err := time.Parse(time.RFC3339, datetime)
 	if err != nil {
 		return models.Item{}, false
 	}
 
 	return models.Item{
 		Title:       title,
-		Link:        resolveTildesURL(baseURL, commentsLink),
+		Link:        resolveTildesURL(baseURL, linkHref),
 		Description: strings.TrimSpace(article.Find("details.topic-text-excerpt summary").Text()),
 		Author:      strings.TrimSpace(article.AttrOr("data-topic-posted-by", "")),
 		Published:   published,
@@ -141,9 +141,13 @@ func nextTildesPageURL(doc *goquery.Document, baseURL *neturl.URL) string {
 }
 
 func (t *TildesSource) parseListingPage(doc *goquery.Document, baseURL *neturl.URL) ([]models.Item, string, error) {
-	items := make([]models.Item, 0, 32)
+	listing := doc.Find("ol.topic-listing")
+	if listing.Length() == 0 {
+		return nil, "", fmt.Errorf("tildes: topic listing not found")
+	}
 
-	doc.Find("ol.topic-listing article.topic").Each(func(_ int, article *goquery.Selection) {
+	items := make([]models.Item, 0, 32)
+	listing.Find("article.topic").Each(func(_ int, article *goquery.Selection) {
 		if item, ok := t.parseTopic(article, baseURL); ok {
 			items = append(items, item)
 		}
@@ -159,7 +163,7 @@ func (t *TildesSource) Fetch(ctx context.Context) ([]models.Item, error) {
 	seen := make(map[string]struct{})
 	visited := make(map[string]struct{})
 
-	for page := 0; page < t.maxPages && nextURL != ""; page++ {
+	for page := 0; page < tildesDefaultMaxPages && nextURL != ""; page++ {
 		if _, ok := visited[nextURL]; ok {
 			break
 		}
@@ -181,7 +185,7 @@ func (t *TildesSource) Fetch(ctx context.Context) ([]models.Item, error) {
 			}
 			seen[item.Link] = struct{}{}
 			items = append(items, item)
-			if len(items) >= t.maxItems {
+			if len(items) >= tildesDefaultMaxItems {
 				return items, nil
 			}
 		}

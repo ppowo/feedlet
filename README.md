@@ -40,11 +40,11 @@ Edit `internal/config/config.go` and rebuild:
 }
 ```
 
-**Source types:** `rss`, `reddit`, `hnalgolia`, `cagematch`
+**Source types:** `rss`, `reddit`, `hnalgolia`, `meltzerwiki`
 
 `hnalgolia` sources fetch Hacker News directly from `hn.algolia.com`.
 
-`cagematch` sources fetch current-year top-rated wrestling matches directly from Cagematch.
+`meltzerwiki` sources fetch the latest Dave Meltzer 5★+ matches from Wikipedia.
 
 ## Logging
 

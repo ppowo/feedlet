@@ -126,7 +126,7 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/SquaredCircle/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           3,
+				Days:           4,
 			},
 		},
 	}

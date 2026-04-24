@@ -78,7 +78,7 @@ func cleanMeltzerWikiCellText(cell *goquery.Selection) string {
 		return normalizeWhitespace(cell.Text())
 	}
 
-	html = strings.NewReplacer("<br>", "\n", "<br/>", "\n", "<br />", "\n").Replace(html)
+	html = strings.NewReplacer("<br>", " / ", "<br/>", " / ", "<br />", " / ").Replace(html)
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader("<div>" + html + "</div>"))
 	if err != nil {
 		return normalizeWhitespace(cell.Text())

@@ -188,7 +188,6 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		IsWaiting           bool
 		StatusText          string
 		EmptyText           string
-		ShowStaleBanner     bool
 		ShowErrorPanel      bool
 		Order               int
 	}
@@ -297,7 +296,6 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	for _, src := range ordered {
 		src.IsWaiting = !src.HasItems && !src.HasEverSucceeded && src.Error == "" && src.LastAttemptAt.IsZero()
-		src.ShowStaleBanner = src.HasItems && src.Stale
 		src.ShowErrorPanel = !src.HasItems && src.Error != ""
 
 		switch {

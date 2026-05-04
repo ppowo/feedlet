@@ -62,14 +62,6 @@
       </div>
 
       <div class="flex-1 min-h-0 p-1.5 xl:overflow-y-auto">
-        {{ if .ShowStaleBanner }}
-        <div class="m-1 mb-2 flex gap-2 rounded-md border border-amber-200 bg-amber-50/70 p-2">
-          <div class="flex-shrink-0 text-[16px] {{ if .Error }}cursor-help{{ end }}" {{ if .Error }}title="{{ .Error }}"{{ end }}>⚠️</div>
-          <div class="break-words text-[11px] leading-relaxed text-amber-800">
-            <div>Last refresh failed. Showing cached items.</div>
-          </div>
-        </div>
-        {{ end }}
 
         {{ if .HasItems }}
         {{ range .Items }}

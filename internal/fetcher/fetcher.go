@@ -110,8 +110,6 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 			src = source.NewFeedSource(cfg.Name, cfg.URL, "reddit", false, cfg.IgnoreDays, cfg.IsChronological)
 		case "lobsters":
 			src = source.NewFeedSource(cfg.Name, cfg.URL, "lobsters", true, false, false)
-		case "4plebs":
-			src = source.NewFourPlebsSource(cfg.Name, cfg.URL, cfg.Limit, cfg.NSFW)
 		case "desuarchive":
 			src = source.NewDesuArchiveSource(cfg.Name, cfg.URL, cfg.Limit, cfg.NSFW)
 		case "meltzerwiki":

@@ -13,13 +13,13 @@ import (
 )
 
 // ChanArchiveSource implements the Source interface for 4chan archive APIs
-// Supports 4plebs and desuarchive
+// Supports desuarchive
 type ChanArchiveSource struct {
 	name        string
 	board       string
 	limit       int
 	nsfw        bool
-	archiveType string // "4plebs" or "desuarchive"
+	archiveType string // "desuarchive"
 	subject     string // Search subject (e.g., "/film/", "/ptg/")
 	baseURL     string
 	minReplies  int           // Minimum reply count (0 = no filter)
@@ -51,20 +51,6 @@ type ChanArchivePost struct {
 	CommentSanitized string `json:"comment_sanitized"`
 }
 
-// NewFourPlebsSource creates a 4plebs source for /film/
-func NewFourPlebsSource(name, board string, limit int, nsfw bool) *ChanArchiveSource {
-	return &ChanArchiveSource{
-		name:        name,
-		board:       board,
-		limit:       limit,
-		nsfw:        nsfw,
-		archiveType: "4plebs",
-		subject:     "/film/",
-		baseURL:     "https://archive.4plebs.org",
-		minReplies:  150,
-		minAge:      0,
-	}
-}
 
 // NewDesuArchiveSource creates a desuarchive source for /ptg/
 func NewDesuArchiveSource(name, board string, limit int, nsfw bool) *ChanArchiveSource {
@@ -153,11 +139,6 @@ func (c *ChanArchiveSource) Fetch(ctx context.Context) ([]models.Item, error) {
 			title := extractFirstLines(post.CommentSanitized, 2)
 			if title == "" {
 				title = c.subject + " - Thread"
-			}
-
-			// Add reply count suffix for 4plebs
-			if c.archiveType == "4plebs" && replyCount > 0 {
-				title = fmt.Sprintf("%s [%d replies]", title, replyCount)
 			}
 
 			threadURL := fmt.Sprintf("%s/%s/thread/%s/#%s",

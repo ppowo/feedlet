@@ -1,12 +1,11 @@
 # Feedlet
 
-Minimal RSS feed aggregator with tiling layout and knowledge retention bar.
+Minimal RSS feed aggregator with tiling layout.
 
 ## Features
 
 - Multiple source types (RSS, Reddit, Hacker News, custom scrapers)
 - Auto-refresh via SSE
-- Knowledge bar (random Java tidbits on each refresh)
 - Embedded configuration
 
 ## Quick Start
@@ -40,9 +39,13 @@ Edit `internal/config/config.go` and rebuild:
 }
 ```
 
-**Source types:** `rss`, `reddit`, `hnalgolia`, `meltzerwiki`
+**Source types:** `rss`, `reddit`, `hnalgolia`, `tildes`, `desuarchive`, `meltzerwiki`
 
 `hnalgolia` sources fetch Hacker News directly from `hn.algolia.com`.
+
+`tildes` sources fetch topics from [Tildes](https://tildes.net).
+
+`desuarchive` sources fetch threads from DesuArchive (4chan archives).
 
 `meltzerwiki` sources fetch the latest Dave Meltzer 5★+ matches from Wikipedia.
 
@@ -62,13 +65,4 @@ Auto-rotates daily, keeps 3 days.
 - `mage clean` - Remove build artifacts
 - `mage setup` - Install tools
 
-## Knowledge Bar
 
-Shows random Java concepts on each page load/refresh. Covers:
-
-- OOP pillars (encapsulation, inheritance, polymorphism, abstraction)
-- Collections, generics, exceptions
-- Concurrency, streams, lambdas
-- Design patterns, SOLID principles
-
-Edit `internal/knowledge/knowledge.go` to customize.

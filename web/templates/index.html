@@ -30,7 +30,7 @@
     {{ if .Sources }}
     {{ range .Sources }}
     <div
-      class="flex flex-col rounded-md border border-slate-200 border-l-2 bg-white/80 xl:min-h-0 {{ if .NSFW }}border-l-rose-400{{ else if .IsChronological }}border-l-emerald-400{{ else if .IgnoreDays }}border-l-amber-400{{ else }}border-l-slate-300{{ end }}">
+      class="flex flex-col rounded-md border border-slate-200 border-l-2 bg-white/80 xl:min-h-0 {{ if .NSFW }}border-l-rose-400{{ else }}border-l-slate-300{{ end }}">
       <div
         class="flex flex-shrink-0 items-center justify-between gap-1.5 border-b border-slate-200/80 bg-slate-50/70 px-2 py-1.5">
         <div class="flex min-w-0 items-center gap-1.5">
@@ -54,10 +54,6 @@
             title="{{ .StatusText }}"
             class="min-w-0 flex-1 truncate text-right text-[10px] leading-snug {{ if .Stale }}text-amber-700{{ else }}text-slate-500{{ end }}">{{
             .StatusText }}</span>
-          {{ if gt .HiddenCount 0 }}
-          <span class="rounded-sm border border-slate-200 bg-white px-1 py-0.5 text-[10px] text-slate-500">+{{ .HiddenCount }} hidden</span>
-          {{ end }}
-          <span class="text-slate-500">{{ if .IgnoreDays }}∞{{ else }}{{ .Days }}d{{ end }}</span>
         </div>
       </div>
 
@@ -71,9 +67,7 @@
               class="block truncate font-medium text-slate-800 hover:text-sky-700 hover:underline visited:text-violet-700">{{
               .Title }}</a>
           </div>
-          {{ if not .HideDate }}
-          <div class="mt-1 text-[11px] text-slate-500">{{ formatTimeAgo .Published }}</div>
-          {{ end }}
+			<div class="mt-1 text-[11px] text-slate-500">{{ formatTimeAgo .Published }}</div>
         </div>
         {{ end }}
         {{ else if .ShowErrorPanel }}

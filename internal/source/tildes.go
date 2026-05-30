@@ -17,19 +17,17 @@ import (
 
 // TildesSource fetches topic listings directly from Tildes HTML pages.
 type TildesSource struct {
-	name       string
-	url        string
-	limit      int
-	ignoreDays bool
+	name  string
+	url   string
+	limit int
 }
 
 // NewTildesSource creates a new Tildes source.
-func NewTildesSource(name, rawURL string, limit int, ignoreDays bool) *TildesSource {
+func NewTildesSource(name, rawURL string, limit int) *TildesSource {
 	return &TildesSource{
-		name:       name,
-		url:        normalizeTildesURL(rawURL),
-		limit:      limit,
-		ignoreDays: ignoreDays,
+		name:  name,
+		url:   normalizeTildesURL(rawURL),
+		limit: limit,
 	}
 }
 
@@ -118,8 +116,6 @@ func (t *TildesSource) parseTopic(article *goquery.Selection, baseURL *neturl.UR
 		Author:      strings.TrimSpace(article.AttrOr("data-topic-posted-by", "")),
 		Published:   published,
 		SourceName:  t.name,
-		SourceType:  "tildes",
-		IgnoreDays:  t.ignoreDays,
 	}, true
 }
 

@@ -133,8 +133,6 @@ func (h *HNAlgoliaSource) Fetch(ctx context.Context) ([]models.Item, error) {
 			Published:       published,
 			SourceName:      h.name,
 			SourceType:      h.sourceType,
-			IgnoreDays:      false,
-			IsChronological: false,
 		})
 	}
 

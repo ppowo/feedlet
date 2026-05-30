@@ -16,19 +16,17 @@ import (
 	"github.com/ppowo/feedlet/internal/models"
 )
 
-// Server represents the HTTP server.
 type Server struct {
 	fetcher       *fetcher.Fetcher
 	tmpl          *template.Template
 	port          int
 	sourceConfigs []models.SourceConfig
-	sourceLimits  map[string]int
-	sourceDays    map[string]int
+	defaultLimit  int
 	httpServer    *http.Server
 }
 
 // New creates a new server from embedded template content.
-func New(f *fetcher.Fetcher, templateContent string, port int, sourceConfigs []models.SourceConfig, sourceLimits map[string]int, sourceDays map[string]int) (*Server, error) {
+func New(f *fetcher.Fetcher, templateContent string, port int, sourceConfigs []models.SourceConfig, defaultLimit int) (*Server, error) {
 	funcMap := template.FuncMap{
 		"formatTime":    func(t time.Time) string { return t.Format("Jan 2, 2006 3:04 PM") },
 		"formatTimeAgo": humanize.Time,
@@ -44,8 +42,7 @@ func New(f *fetcher.Fetcher, templateContent string, port int, sourceConfigs []m
 		tmpl:          tmpl,
 		port:          port,
 		sourceConfigs: append([]models.SourceConfig(nil), sourceConfigs...),
-		sourceLimits:  sourceLimits,
-		sourceDays:    sourceDays,
+		defaultLimit:  defaultLimit,
 	}
 
 	mux := http.NewServeMux()
@@ -162,21 +159,14 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	feed := s.fetcher.GetFeed()
-	filteredAgg := aggregator.Process(feed).FilterBySourceDays(s.sourceDays)
-	filteredGrouped := filteredAgg.GroupBySource()
-	grouped := filteredAgg.LimitPerSource(s.sourceLimits).GroupBySource()
-	allGrouped := aggregator.Process(feed).GroupBySource()
+	grouped := aggregator.Process(feed).LimitPerSource(s.defaultLimit).GroupBySource()
 
 	type Source struct {
 		Name                string
 		HomeURL             string
 		Items               []any
 		HasItems            bool
-		IgnoreDays          bool
 		NSFW                bool
-		IsChronological     bool
-		Days                int
-		HiddenCount         int
 		NewestItemAge       time.Time
 		Error               string
 		Stale               bool
@@ -184,20 +174,11 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		LastSuccessAt       time.Time
 		ConsecutiveFailures int
 		HasEverSucceeded    bool
-		HasHistoricalItems  bool
 		IsWaiting           bool
 		StatusText          string
 		EmptyText           string
 		ShowErrorPanel      bool
 		Order               int
-	}
-
-	getDays := func(name string) int {
-		days := s.sourceDays[name]
-		if days == 0 {
-			return 2
-		}
-		return days
 	}
 
 	applyState := func(dst *Source, name string) {
@@ -222,14 +203,11 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	for i, cfg := range s.sourceConfigs {
 		src := &Source{
-			Name:            cfg.Name,
-			HomeURL:         cfg.HomeURL,
-			Items:           []any{},
-			IgnoreDays:      cfg.IgnoreDays,
-			NSFW:            cfg.NSFW,
-			IsChronological: cfg.IsChronological,
-			Days:            getDays(cfg.Name),
-			Order:           i,
+			Name:    cfg.Name,
+			HomeURL: cfg.HomeURL,
+			Items:   []any{},
+			NSFW:    cfg.NSFW,
+			Order:   i,
 		}
 		applyState(src, cfg.Name)
 		sourceByName[cfg.Name] = src
@@ -244,10 +222,9 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		src := &Source{
 			Name:  name,
 			Items: []any{},
-			Days:  getDays(name),
 			Order: len(ordered),
 		}
-		applyState(src, name)
+
 		sourceByName[name] = src
 		ordered = append(ordered, src)
 		return src
@@ -255,38 +232,18 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	for name, items := range grouped {
 		src := ensureSource(name)
-		src.HiddenCount = len(filteredGrouped[name]) - len(items)
+
 		src.Items = make([]any, len(items))
 		src.HasItems = len(items) > 0
 
 		for i, item := range items {
 			src.Items[i] = item
-			if item.IgnoreDays {
-				src.IgnoreDays = true
-			}
-			if item.NSFW {
-				src.NSFW = true
-			}
-			if item.IsChronological {
-				src.IsChronological = true
-			}
-			if item.Published.After(src.NewestItemAge) {
+			if i > 0 || src.NewestItemAge.Before(item.Published) {
 				src.NewestItemAge = item.Published
 			}
 		}
 	}
 
-	for name := range allGrouped {
-		src := ensureSource(name)
-		src.HasHistoricalItems = len(allGrouped[name]) > 0
-		if src.NewestItemAge.IsZero() {
-			for _, item := range allGrouped[name] {
-				if item.Published.After(src.NewestItemAge) {
-					src.NewestItemAge = item.Published
-				}
-			}
-		}
-	}
 	for name := range feed.SourceStates {
 		ensureSource(name)
 	}
@@ -317,7 +274,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 			switch {
 			case src.IsWaiting:
 				src.EmptyText = "Waiting for first fetch..."
-			case src.HasEverSucceeded || src.HasHistoricalItems || !src.LastAttemptAt.IsZero():
+			case src.HasEverSucceeded || !src.LastAttemptAt.IsZero():
 				src.EmptyText = "No recent items"
 			default:
 				src.EmptyText = "Waiting for first fetch..."

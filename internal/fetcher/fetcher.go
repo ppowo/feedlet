@@ -101,19 +101,19 @@ func NewFromConfigs(configs []models.SourceConfig, minFetchInterval int, maxSubs
 		var src source.Source
 		switch cfg.Type {
 		case "rss":
-			src = source.NewFeedSource(cfg.Name, cfg.URL, "rss", false, false, false)
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "rss", false)
 		case "tildes":
-			src = source.NewTildesSource(cfg.Name, cfg.URL, cfg.Limit, cfg.IgnoreDays)
+			src = source.NewTildesSource(cfg.Name, cfg.URL, 4)
 		case "hnalgolia":
 			src = source.NewHNAlgoliaSource(cfg.Name, cfg.URL, cfg.Type)
 		case "reddit":
-			src = source.NewFeedSource(cfg.Name, cfg.URL, "reddit", false, cfg.IgnoreDays, cfg.IsChronological)
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "reddit", false)
 		case "lobsters":
-			src = source.NewFeedSource(cfg.Name, cfg.URL, "lobsters", true, false, false)
+			src = source.NewFeedSource(cfg.Name, cfg.URL, "lobsters", true)
 		case "desuarchive":
-			src = source.NewDesuArchiveSource(cfg.Name, cfg.URL, cfg.Limit, cfg.NSFW)
+			src = source.NewDesuArchiveSource(cfg.Name, cfg.URL, 4, cfg.NSFW)
 		case "meltzerwiki":
-			src = source.NewMeltzerWikiSource(cfg.Name, cfg.Limit)
+			src = source.NewMeltzerWikiSource(cfg.Name, 4)
 		default:
 			log.Printf("Unknown source type: %s", cfg.Type)
 			continue

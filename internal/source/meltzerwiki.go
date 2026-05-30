@@ -216,7 +216,6 @@ func (m *MeltzerWikiSource) parseMatchRow(row []meltzerWikiCell) (models.Item, b
 		Published:   published,
 		SourceName:  m.name,
 		SourceType:  "meltzerwiki",
-		IgnoreDays:  true,
 	}, true
 }
 

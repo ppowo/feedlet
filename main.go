@@ -48,23 +48,7 @@ func main() {
 		port = 8080
 	}
 
-	// Build source limits and days maps
-	sourceLimits := make(map[string]int)
-	sourceDays := make(map[string]int)
-	for _, srcCfg := range cfg.Sources {
-		if srcCfg.Limit > 0 {
-			sourceLimits[srcCfg.Name] = srcCfg.Limit
-		} else if cfg.DefaultSourceLimit > 0 {
-			sourceLimits[srcCfg.Name] = cfg.DefaultSourceLimit
-		}
-		if srcCfg.Days > 0 {
-			sourceDays[srcCfg.Name] = srcCfg.Days
-		} else {
-			sourceDays[srcCfg.Name] = 2 // Default 2 days
-		}
-	}
-
-	srv, err := server.New(f, web.IndexTemplate, port, cfg.Sources, sourceLimits, sourceDays)
+	srv, err := server.New(f, web.IndexTemplate, port, cfg.Sources, 4)
 	if err != nil {
 		log.Fatal(err)
 	}

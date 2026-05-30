@@ -11,7 +11,6 @@ func GetConfig() *models.Config {
 		Port:               3737,
 		MinFetchInterval:   5, // Default 5 second minimum between fetches per source
 		MaxSubscribers:     1000,
-		DefaultSourceLimit: 4,
 		Sources: []models.SourceConfig{
 			{
 				Name:           "r/Italia Career Advice",
@@ -20,7 +19,6 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/italiacareeradvice/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           10,
 			},
 			{
 				Name:           "r/Italia Personal Finance",
@@ -29,7 +27,6 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/ItaliaPersonalFinance/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           10,
 			},
 			{
 				Name:           "r/Programming",
@@ -38,7 +35,6 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/programming/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           10,
 			},
 			{
 				Name:           "HN 350+",
@@ -47,7 +43,6 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://hckrnews.com/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           3,
 			},
 			{
 				Name:           "r/Trackers",
@@ -56,7 +51,6 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/trackers/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           13,
 			},
 			{
 				Name:           "Tildes ~tech",
@@ -65,8 +59,6 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://tildes.net/~tech?order=votes&period=90d",
 				Interval:       1800,
 				IntervalJitter: 120,
-				IgnoreDays:     true,
-				Limit:          4,
 			},
 			{
 				Name:           "r/40k Lore",
@@ -75,7 +67,6 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/40kLore/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           10,
 			},
 			{
 				Name:           "r/TrueFilm",
@@ -84,7 +75,6 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/truefilm/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           10,
 			},
 			{
 				Name:           "DesuArchive /g/ /ptg/",
@@ -93,9 +83,7 @@ func GetConfig() *models.Config {
 				HomeURL:        "",
 				Interval:       1800,
 				IntervalJitter: 120,
-				IgnoreDays:     true,
 				NSFW:           true,
-				Limit:          4,
 			},
 			{
 				Name:           source.CurrentMeltzerWikiSourceName(),
@@ -104,8 +92,6 @@ func GetConfig() *models.Config {
 				HomeURL:        source.CurrentMeltzerWikiHomeURL(),
 				Interval:       3600,
 				IntervalJitter: 300,
-				IgnoreDays:     true,
-				Limit:          4,
 			},
 			{
 				Name:           "r/technology",
@@ -114,8 +100,6 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/technology/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				NSFW:           false,
-				Days:           4,
 			},
 			{
 				Name:           "r/SquaredCircle",
@@ -124,7 +108,6 @@ func GetConfig() *models.Config {
 				HomeURL:        "https://old.reddit.com/r/SquaredCircle/top/",
 				Interval:       1800,
 				IntervalJitter: 120,
-				Days:           4,
 			},
 		},
 	}

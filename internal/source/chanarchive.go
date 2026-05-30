@@ -157,10 +157,7 @@ func (c *ChanArchiveSource) Fetch(ctx context.Context) ([]models.Item, error) {
 				Author:      post.Name,
 				Published:   published,
 				SourceName:  c.name,
-				SourceType:  c.archiveType,
-				IgnoreDays:  true,
-				NSFW:        c.nsfw,
-			})
+	})
 
 			if c.limit > 0 && len(items) >= c.limit {
 				return items, nil

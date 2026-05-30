@@ -2,7 +2,6 @@ package aggregator
 
 import (
 	"sort"
-	"time"
 
 	"github.com/ppowo/feedlet/internal/models"
 )
@@ -44,99 +43,24 @@ func (a *Aggregate) GroupBySource() map[string][]models.Item {
 	return grouped
 }
 
-// GroupByDate groups items by date (YYYY-MM-DD).
-func (a *Aggregate) GroupByDate() map[string][]models.Item {
-	grouped := make(map[string][]models.Item)
-	for _, item := range a.Items {
-		date := item.Published.Format("2006-01-02")
-		grouped[date] = append(grouped[date], item)
-	}
-
-	for _, items := range grouped {
-		sortByPublished(items)
-	}
-
-	return grouped
-}
-
-// Limit returns only the first n items.
-func (a *Aggregate) Limit(n int) *Aggregate {
-	if n <= 0 {
-		return &Aggregate{Items: []models.Item{}}
-	}
-	if n > len(a.Items) {
-		n = len(a.Items)
-	}
-	return &Aggregate{
-		Items: a.Items[:n],
-	}
-}
-
-// FilterByAge returns only items published within the last n days.
-// Items with IgnoreDays=true are always included.
-func (a *Aggregate) FilterByAge(days int) *Aggregate {
-	cutoff := time.Now().AddDate(0, 0, -days)
-	filtered := make([]models.Item, 0, len(a.Items))
-
-	for _, item := range a.Items {
-		if item.IgnoreDays || item.Published.After(cutoff) {
-			filtered = append(filtered, item)
-		}
-	}
-
-	return &Aggregate{
-		Items: filtered,
-	}
-}
-
-// FilterBySourceDays filters items based on per-source day limits.
-// Items with IgnoreDays=true are always included.
-func (a *Aggregate) FilterBySourceDays(sourceDays map[string]int) *Aggregate {
-	filtered := make([]models.Item, 0, len(a.Items))
-
-	for _, item := range a.Items {
-		if item.IgnoreDays {
-			filtered = append(filtered, item)
-			continue
-		}
-
-		days, hasDays := sourceDays[item.SourceName]
-		if !hasDays || days <= 0 {
-			filtered = append(filtered, item)
-			continue
-		}
-
-		cutoff := time.Now().AddDate(0, 0, -days)
-		if item.Published.After(cutoff) {
-			filtered = append(filtered, item)
-		}
-	}
-
-	return &Aggregate{
-		Items: filtered,
-	}
-}
-
-// LimitPerSource limits the number of items per source.
-// If limit is 0 or negative, no limiting is applied.
-func (a *Aggregate) LimitPerSource(limits map[string]int) *Aggregate {
-	if len(limits) == 0 {
+// LimitPerSource limits the number of items per source to the given limit.
+func (a *Aggregate) LimitPerSource(limit int) *Aggregate {
+	if limit <= 0 {
 		return a
 	}
 
 	grouped := a.GroupBySource()
 	filtered := make([]models.Item, 0, len(a.Items))
-	seen := make(map[string]struct{})
+	seen := make(map[string]bool)
 
 	for _, item := range a.Items {
-		sourceName := item.SourceName
-		if _, ok := seen[sourceName]; ok {
+		if seen[item.SourceName] {
 			continue
 		}
-		seen[sourceName] = struct{}{}
+		seen[item.SourceName] = true
 
-		items := grouped[sourceName]
-		if limit := limits[sourceName]; limit > 0 && limit < len(items) {
+		items := grouped[item.SourceName]
+		if len(items) > limit {
 			items = items[:limit]
 		}
 		filtered = append(filtered, items...)
